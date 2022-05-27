@@ -10,6 +10,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
 using Dalamud.Interface;
+using Dalamud.Interface.Internal.Notifications;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Logging;
@@ -22,9 +23,10 @@ public class Plugin: IDalamudPlugin {
 
 	private bool disposed;
 
-	public string Name { get; } = "Positional Helper";
+	public string Name { get; } = "Positional Assistant";
 
 	[PluginService] public static GameGui Gui { get; private set; } = null!;
+	[PluginService] public static ChatGui Chat { get; private set; } = null!;
 	[PluginService] public static DalamudPluginInterface Interface { get; private set; } = null!;
 	[PluginService] public static CommandManager Commands { get; private set; } = null!;
 	[PluginService] public static ClientState Client { get; private set; } = null!;
@@ -52,11 +54,14 @@ public class Plugin: IDalamudPlugin {
 	}
 
 	internal void draw() {
+		this.windowSystem.Draw();
+
 		// If positionals matter in PVP, I won't help you. If they don't, I won't distract you.
 		if (Client.IsPvP)
 			return;
 
-		this.windowSystem.Draw();
+		if (!this.Config.Enabled)
+			return;
 
 		if (Targets.Target is not BattleChara target)
 			return;
@@ -121,14 +126,108 @@ public class Plugin: IDalamudPlugin {
 	}
 
 	internal void onPluginCommand(string command, string arguments) {
-		string[] argumentsParts = arguments.Split();
+		string[] args = arguments.Trim().Split();
 
-		switch (argumentsParts[0].ToLower()) {
-			// TODO subcommands
-			default:
-				this.toggleConfigUi();
+		string action = args.Length >= 1 ? args[0].ToLower() : "config";
+		string target = args.Length >= 2 ? args[1].ToLower() : "render";
+		if (string.IsNullOrEmpty(action))
+			action = "config";
+
+		bool? state;
+
+		switch (action) {
+			case "enable":
+				state = true;
 				break;
+			case "disable":
+				state = false;
+				break;
+			case "toggle":
+				state = null;
+				break;
+			case "config":
+				this.toggleConfigUi();
+				return;
+			case "swap":
+				target = "all";
+				state = null;
+				break;
+			default:
+				Chat.PrintError($"Unknown action '{args[0]}'");
+				return;
 		}
+
+		switch (target) {
+			case "f":
+			case "front":
+				this.Config.DrawFront = state ?? !this.Config.DrawFront;
+				break;
+			case "fr":
+			case "frontright":
+			case "front-right":
+				this.Config.DrawFrontRight = state ?? !this.Config.DrawFrontRight;
+				break;
+			case "r":
+			case "right":
+				this.Config.DrawRight = state ?? !this.Config.DrawRight;
+				break;
+			case "br":
+			case "backright":
+			case "back-right":
+				this.Config.DrawBackRight = state ?? !this.Config.DrawBackRight;
+				break;
+			case "b":
+			case "back":
+				this.Config.DrawBack = state ?? !this.Config.DrawBack;
+				break;
+			case "bl":
+			case "backleft":
+			case "back-left":
+				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
+				break;
+			case "l":
+			case "left":
+				this.Config.DrawLeft = state ?? !this.Config.DrawLeft;
+				break;
+			case "fl":
+			case "frontleft":
+			case "front-left":
+				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
+				break;
+			case "cardinal":
+			case "cardinals":
+				this.Config.DrawFront = state ?? !this.Config.DrawFront;
+				this.Config.DrawRight = state ?? !this.Config.DrawRight;
+				this.Config.DrawBack = state ?? !this.Config.DrawBack;
+				this.Config.DrawLeft = state ?? !this.Config.DrawLeft;
+				break;
+			case "diagonal":
+			case "diagonals":
+				this.Config.DrawFrontRight = state ?? !this.Config.DrawFrontRight;
+				this.Config.DrawBackRight = state ?? !this.Config.DrawBackRight;
+				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
+				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
+				break;
+			case "all":
+				this.Config.DrawFront = state ?? !this.Config.DrawFront;
+				this.Config.DrawRight = state ?? !this.Config.DrawRight;
+				this.Config.DrawBack = state ?? !this.Config.DrawBack;
+				this.Config.DrawLeft = state ?? !this.Config.DrawLeft;
+				this.Config.DrawFrontRight = state ?? !this.Config.DrawFrontRight;
+				this.Config.DrawBackRight = state ?? !this.Config.DrawBackRight;
+				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
+				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
+				break;
+			case "render":
+				this.Config.Enabled = state ?? !this.Config.Enabled;
+				Interface.UiBuilder.AddNotification($"Guide rendering {(this.Config.Enabled ? "on" : "off")}", this.Name, NotificationType.Info);
+				break;
+			default:
+				Chat.PrintError($"Unknown target '{args[1]}'");
+				return;
+		}
+
+		Interface.SavePluginConfig(this.Config);
 	}
 
 	internal void toggleConfigUi() {

@@ -20,6 +20,8 @@ public class Configuration: IPluginConfiguration {
 
 	public int Version { get; set; } = 1;
 
+	public bool Enabled { get; set; } = true;
+
 	/// <summary>
 	/// Starts at front-left then goes clockwise
 	/// </summary>
@@ -39,6 +41,9 @@ public class Configuration: IPluginConfiguration {
 	public short MaxDrawRange { get; set; } = byte.MaxValue;
 	public short LineThickness { get; set; } = 3;
 
+	/// <summary>
+	/// Starts at front-left then goes clockwise
+	/// </summary>
 	public Vector4[] LineColours { get; set; } = new Vector4[] {
 		new Vector4(1, 0, 0, 1), // front
 		new Vector4(1, 0, 0, 1), // front right
@@ -51,6 +56,47 @@ public class Configuration: IPluginConfiguration {
 	};
 
 	#region Shortcuts
+	[JsonIgnore]
+	public bool DrawFront {
+		get => this.DrawGuides[0];
+		set => this.DrawGuides[0] = value;
+	}
+	[JsonIgnore]
+	public bool DrawFrontRight {
+		get => this.DrawGuides[1];
+		set => this.DrawGuides[1] = value;
+	}
+	[JsonIgnore]
+	public bool DrawRight {
+		get => this.DrawGuides[2];
+		set => this.DrawGuides[2] = value;
+	}
+	[JsonIgnore]
+	public bool DrawBackRight {
+		get => this.DrawGuides[3];
+		set => this.DrawGuides[3] = value;
+	}
+	[JsonIgnore]
+	public bool DrawBack {
+		get => this.DrawGuides[4];
+		set => this.DrawGuides[4] = value;
+	}
+	[JsonIgnore]
+	public bool DrawBackLeft {
+		get => this.DrawGuides[5];
+		set => this.DrawGuides[5] = value;
+	}
+	[JsonIgnore]
+	public bool DrawLeft {
+		get => this.DrawGuides[6];
+		set => this.DrawGuides[6] = value;
+	}
+	[JsonIgnore]
+	public bool DrawFrontLeft {
+		get => this.DrawGuides[7];
+		set => this.DrawGuides[7] = value;
+	}
+
 	[JsonIgnore]
 	public float SoftDrawRange => (float)this.ExtraDrawRange / 10;
 

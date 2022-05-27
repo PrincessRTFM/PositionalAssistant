@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<Authors>VariableVixen</Authors>
-		<Version>1.0</Version>
+		<Version>1.1</Version>
 		<Description>Provides drawn guidelines to see where you need to stand to hit enemies with positionals</Description>
 		<Copyright>Copyleft Vixen 2022</Copyright>
 		<PackageProjectUrl>https://github.com/PrincessRTFM/PositionalGuide</PackageProjectUrl>

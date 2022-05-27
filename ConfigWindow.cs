@@ -61,6 +61,26 @@ public class ConfigWindow: Window, IDisposable {
 			Marshal.Copy(BitConverter.GetBytes(vals[i]), 0, ptrs[i], ptrMemWidth);
 		}
 
+		bool active = this.conf.Enabled;
+
+		if (Plugin.Client.IsPvP) {
+			ImGui.TextUnformatted("You are currently in a PvP zone.");
+			ImGui.TextUnformatted("This plugin does not function in PvP.");
+			ImGui.Spacing();
+			ImGui.Separator();
+			ImGui.Spacing();
+		}
+
+		changed |= ImGui.Checkbox("Enabled?", ref active);
+		if (ImGui.IsItemHovered()) {
+			ImGui.BeginTooltip();
+			ImGui.PushTextWrapPos(ImGui.GetFontSize() * 40);
+			ImGui.TextUnformatted("Whether to draw any positional guides at all");
+			ImGui.PopTextWrapPos();
+			ImGui.EndTooltip();
+		}
+		ImGui.TextUnformatted("");
+
 		bool[] drawing = this.conf.DrawGuides;
 		Vector4[] colours = this.conf.LineColours;
 		ImGui.Columns(3, "###drawControls", false);
@@ -115,9 +135,29 @@ public class ConfigWindow: Window, IDisposable {
 			ImGui.EndTooltip();
 		}
 
+		ImGui.Spacing();
+		ImGui.Separator();
+		ImGui.Spacing();
+		ImGui.PushTextWrapPos(ImGui.GetFontSize() * 25);
+		ImGui.TextUnformatted("All of the above toggle settings can be changed via command:");
+		ImGui.Indent();
+		ImGui.TextUnformatted($"{Plugin.Command} <action> [target]");
+		ImGui.Unindent();
+		ImGui.TextUnformatted("");
+		ImGui.TextUnformatted("Target may be any of the following, hyphyens optional:");
+		ImGui.Indent();
+		ImGui.TextUnformatted("fl, front-left, f, front, fr, front-right, r, right, br, back-right, b, back, bl, back-left, l, left");
+		ImGui.Unindent();
+		ImGui.TextUnformatted("");
+		ImGui.TextUnformatted("Additionally, you can use 'cardinal', 'cardinals', 'diagonal', 'diagonals', and 'all' to affect multiple lines with a single command.");
+		ImGui.TextUnformatted("");
+		ImGui.TextUnformatted("Finally, you can use the action 'config' (the default) to explicitly toggle this window, and the target 'render' (the default) to toggle showing guides at all without losing your settings.");
+		ImGui.PopTextWrapPos();
+
 		if (changed) {
 			for (int i = 0; i < vals.Length; ++i)
 				Marshal.Copy(ptrs[i], vals, i, 1);
+			this.conf.Enabled = active;
 			this.conf.ExtraDrawRange = vals[0];
 			this.conf.MinDrawRange = vals[1];
 			this.conf.MaxDrawRange = vals[2];
