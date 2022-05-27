@@ -48,17 +48,20 @@ public class ConfigWindow: Window, IDisposable {
 	public override void Draw() {
 		bool changed = false;
 
-		short[] vals = new short[] {
+		short[] hack = new short[] {
 			this.conf.ExtraDrawRange,
 			this.conf.MinDrawRange,
 			this.conf.MaxDrawRange,
 			this.conf.LineThickness,
 		};
+		bool[] drawing = this.conf.DrawGuides;
+		Vector4[] colours = this.conf.LineColours;
+		bool limitRender = this.conf.OnlyRenderWhenFullyOnScreen;
 
-		IntPtr[] ptrs = new IntPtr[vals.Length];
-		for (int i = 0; i < vals.Length; ++i) {
+		IntPtr[] ptrs = new IntPtr[hack.Length];
+		for (int i = 0; i < hack.Length; ++i) {
 			ptrs[i] = Marshal.AllocHGlobal(ptrMemWidth);
-			Marshal.Copy(BitConverter.GetBytes(vals[i]), 0, ptrs[i], ptrMemWidth);
+			Marshal.Copy(BitConverter.GetBytes(hack[i]), 0, ptrs[i], ptrMemWidth);
 		}
 
 		bool active = this.conf.Enabled;
@@ -95,9 +98,8 @@ public class ConfigWindow: Window, IDisposable {
 		}
 #endif
 		ImGui.TextUnformatted("");
+		ImGui.TextUnformatted("Which guidelines do you want, and in what colours?");
 
-		bool[] drawing = this.conf.DrawGuides;
-		Vector4[] colours = this.conf.LineColours;
 		ImGui.Columns(3, "###drawControls", false);
 		foreach (int i in new int[] { 7, 0, 1, 6, 2, 5, 4, 3 }) {
 			changed |= ImGui.Checkbox($"Show?###drawGuide{i}", ref drawing[i]);
@@ -113,6 +115,20 @@ public class ConfigWindow: Window, IDisposable {
 				ImGui.NextColumn();
 		}
 		ImGui.Columns(1);
+
+		changed |= ImGui.Checkbox("Only draw lines that are entirely on screen?", ref limitRender);
+		if (ImGui.IsItemHovered()) {
+			ImGui.BeginTooltip();
+			ImGui.PushTextWrapPos(ImGui.GetFontSize() * 40);
+			ImGui.TextUnformatted(
+				"Some users have reported that lines being partially off-screen causes a visual bug, wherein the line just shoots off across your whole screen in a random direction."
+				+ " This setting will stop individual lines from being drawn if either endpoint (the target or the outside) isn't fully on your screen."
+			);
+			ImGui.TextUnformatted("");
+			ImGui.TextUnformatted("Note that if the lines are long and your camera is zoomed in, you might not see ANY lines with this enabled.");
+			ImGui.PopTextWrapPos();
+			ImGui.EndTooltip();
+		}
 
 		changed |= ImGui.SliderScalar("Guideline size modifier", ImGuiDataType.S16, ptrs[0], this.minModifierPtr, this.maxModifierPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
 		if (ImGui.IsItemHovered()) {
@@ -154,12 +170,12 @@ public class ConfigWindow: Window, IDisposable {
 		ImGui.Separator();
 		ImGui.Spacing();
 		ImGui.PushTextWrapPos(ImGui.GetFontSize() * 25);
-		ImGui.TextUnformatted("All of the above toggle settings can be changed via command:");
+		ImGui.TextUnformatted("Most of the above toggle settings can be changed via command:");
 		ImGui.Indent();
 		ImGui.TextUnformatted($"{Plugin.Command} <action> [target]");
 		ImGui.Unindent();
 		ImGui.TextUnformatted("");
-		ImGui.TextUnformatted("Target may be any of the following, hyphyens optional:");
+		ImGui.TextUnformatted("Target may be any of the following, hyphyens optional, to toggle that line:");
 		ImGui.Indent();
 		ImGui.TextUnformatted("fl, front-left, f, front, fr, front-right, r, right, br, back-right, b, back, bl, back-left, l, left");
 		ImGui.Unindent();
@@ -170,16 +186,17 @@ public class ConfigWindow: Window, IDisposable {
 		ImGui.PopTextWrapPos();
 
 		if (changed) {
-			for (int i = 0; i < vals.Length; ++i)
-				Marshal.Copy(ptrs[i], vals, i, 1);
+			for (int i = 0; i < hack.Length; ++i)
+				Marshal.Copy(ptrs[i], hack, i, 1);
 			this.conf.Enabled = active;
 #if DEBUG
 			this.conf.DrawOnPlayers = players;
 #endif
-			this.conf.ExtraDrawRange = vals[0];
-			this.conf.MinDrawRange = vals[1];
-			this.conf.MaxDrawRange = vals[2];
-			this.conf.LineThickness = vals[3];
+			this.conf.OnlyRenderWhenFullyOnScreen = limitRender;
+			this.conf.ExtraDrawRange = hack[0];
+			this.conf.MinDrawRange = hack[1];
+			this.conf.MaxDrawRange = hack[2];
+			this.conf.LineThickness = hack[3];
 			this.conf.DrawGuides = drawing;
 			this.conf.LineColours = colours;
 			Plugin.Interface.SavePluginConfig(this.conf);

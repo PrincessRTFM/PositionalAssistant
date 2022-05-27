@@ -21,6 +21,7 @@ public class Configuration: IPluginConfiguration {
 	public int Version { get; set; } = 1;
 
 	public bool Enabled { get; set; } = true;
+	public bool OnlyRenderWhenFullyOnScreen { get; set; } = false;
 
 #if DEBUG
 	public bool DrawOnPlayers { get; set; } = false;

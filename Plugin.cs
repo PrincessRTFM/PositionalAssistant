@@ -92,13 +92,15 @@ public class Plugin: IDalamudPlugin {
 			return;
 		}
 
+		bool limited = this.Config.OnlyRenderWhenFullyOnScreen;
 		Vector3 pos = target.Position;
 		float y = pos.Y;
 		float angle = -target.Rotation;
 		float length = Math.Min(this.Config.SoftMaxRange, Math.Max(this.Config.SoftMinRange, target.HitboxRadius + this.Config.SoftDrawRange));
 		ImDrawListPtr drawing = ImGui.GetWindowDrawList();
 
-		Gui.WorldToScreen(pos, out Vector2 centre);
+		if (!Gui.WorldToScreen(pos, out Vector2 centre) && limited)
+			return;
 
 		// +X = east, -X = west
 		// +Z = south, -Z = north
@@ -109,8 +111,8 @@ public class Plugin: IDalamudPlugin {
 				continue;
 
 			Vector3 rotated = rotatePoint(pos, basePoint, angle + deg2rad(i * 45), y);
-			Gui.WorldToScreen(rotated, out Vector2 coord);
-			drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[i]), this.Config.LineThickness);
+			if (Gui.WorldToScreen(rotated, out Vector2 coord) || !limited)
+				drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[i]), this.Config.LineThickness);
 		}
 
 		ImGui.End();
