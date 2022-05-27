@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Authors>VariableVixen</Authors>
+		<Version>1.0</Version>
+		<Description>Provides drawn guidelines to see where you need to stand to hit enemies with positionals</Description>
+		<Copyright>Copyleft Vixen 2022</Copyright>
+		<PackageProjectUrl>https://github.com/PrincessRTFM/PositionalGuide</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/PrincessRTFM/PositionalGuide.git</RepositoryUrl>
+		<OutputType>Library</OutputType>
+		<Platforms>x64</Platforms>
+		<PlatformTarget>x64</PlatformTarget>
+		<PackageId>PositionalGuide</PackageId>
+		<Product>$(PackageId)</Product>
+		<AssemblyName>$(PackageId)</AssemblyName>
+		<TargetFramework>net5.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<NullableContextOptions>enable</NullableContextOptions>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<LangVersion>10</LangVersion>
+		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<RootNamespace>PositionalGuide</RootNamespace>
+		<DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+		<Deterministic>false</Deterministic>
+		<AssemblyVersion>$(Version).*</AssemblyVersion>
+		<GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+		<SourceRevisionId>debug</SourceRevisionId>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>embedded</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>bin\Debug\</OutputPath>
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+		<DebugType>portable</DebugType>
+		<Optimize>true</Optimize>
+		<OutputPath>bin\Release\</OutputPath>
+		<DefineConstants>TRACE</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="DalamudPackager" Version="2.1.6" />
+		<PackageReference Include="ILRepack" Version="2.0.18" />
+		<PackageReference Include="XivCommon" Version="5.0.0" />
+		<Reference Include="Newtonsoft.Json">
+			<HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Dalamud">
+			<HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="ImGui.NET">
+			<HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="ImGuiScene">
+			<HintPath>$(DalamudLibPath)ImGuiScene.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Lumina">
+			<HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Lumina.Excel">
+			<HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Remove=".gitignore" />
+		<None Remove="bump" />
+		<None Remove="dalamud-plugin-ui-colours.png" />
+		<None Remove="README.md" />
+	</ItemGroup>
+
+	<Target Name="ILRepack" AfterTargets="PostBuildEvent">
+		<ItemGroup>
+			<InputAssemblies Include="$(TargetPath)" />
+			<InputAssemblies Include="$(TargetDir)*.dll" Exclude="$(TargetPath)" />
+		</ItemGroup>
+		<Exec Command="$(PkgILRepack)\tools\ILRepack.exe /lib:$(DalamudLibPath) /out:$(TargetDir)..\$(Configuration).ILMerge\$(TargetFileName) @(InputAssemblies, ' ')" />
+	</Target>
+	<Target Name="PackagePlugin" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+		<DalamudPackager ProjectDir="$(ProjectDir)" OutputPath="$(OutputPath)..\$(Configuration).ILMerge" AssemblyName="$(AssemblyName)" MakeZip="true" />
+	</Target>
+
+</Project>
