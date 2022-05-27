@@ -22,6 +22,10 @@ public class Configuration: IPluginConfiguration {
 
 	public bool Enabled { get; set; } = true;
 
+#if DEBUG
+	public bool DrawOnPlayers { get; set; } = false;
+#endif
+
 	/// <summary>
 	/// Starts at front-left then goes clockwise
 	/// </summary>

@@ -62,6 +62,9 @@ public class ConfigWindow: Window, IDisposable {
 		}
 
 		bool active = this.conf.Enabled;
+#if DEBUG
+		bool players = this.conf.DrawOnPlayers;
+#endif
 
 		if (Plugin.Client.IsPvP) {
 			ImGui.TextUnformatted("You are currently in a PvP zone.");
@@ -79,6 +82,18 @@ public class ConfigWindow: Window, IDisposable {
 			ImGui.PopTextWrapPos();
 			ImGui.EndTooltip();
 		}
+#if DEBUG
+		changed |= ImGui.Checkbox("Players?", ref players);
+		if (ImGui.IsItemHovered()) {
+			ImGui.BeginTooltip();
+			ImGui.PushTextWrapPos(ImGui.GetFontSize() * 40);
+			ImGui.TextUnformatted("Should guides be drawn on players?");
+			ImGui.TextUnformatted("");
+			ImGui.TextUnformatted("This is a debug-build exclusive setting. PvP still isn't enabled.");
+			ImGui.PopTextWrapPos();
+			ImGui.EndTooltip();
+		}
+#endif
 		ImGui.TextUnformatted("");
 
 		bool[] drawing = this.conf.DrawGuides;
@@ -158,6 +173,9 @@ public class ConfigWindow: Window, IDisposable {
 			for (int i = 0; i < vals.Length; ++i)
 				Marshal.Copy(ptrs[i], vals, i, 1);
 			this.conf.Enabled = active;
+#if DEBUG
+			this.conf.DrawOnPlayers = players;
+#endif
 			this.conf.ExtraDrawRange = vals[0];
 			this.conf.MinDrawRange = vals[1];
 			this.conf.MaxDrawRange = vals[2];

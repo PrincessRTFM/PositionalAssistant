@@ -66,8 +66,15 @@ public class Plugin: IDalamudPlugin {
 		if (Targets.Target is not BattleChara target)
 			return;
 
-		if (target.ObjectKind is ObjectKind.Player) // TODO make this configurable?
+		if (target.ObjectKind is ObjectKind.Player) {
+			// TODO make this configurable in non-debug?
+#if DEBUG
+			if (!this.Config.DrawOnPlayers)
+				return;
+#else
 			return;
+#endif
+		}
 
 		ImGuiHelpers.ForceNextWindowMainViewport();
 		ImGui.SetNextWindowPos(ImGui.GetMainViewport().Pos);
@@ -87,7 +94,7 @@ public class Plugin: IDalamudPlugin {
 
 		Vector3 pos = target.Position;
 		float y = pos.Y;
-		float angle = target.Rotation;
+		float angle = -target.Rotation;
 		float length = Math.Min(this.Config.SoftMaxRange, Math.Max(this.Config.SoftMinRange, target.HitboxRadius + this.Config.SoftDrawRange));
 		ImDrawListPtr drawing = ImGui.GetWindowDrawList();
 
@@ -95,13 +102,13 @@ public class Plugin: IDalamudPlugin {
 
 		// +X = east, -X = west
 		// +Z = south, -Z = north
-		Vector3 north = pos + new Vector3(0, 0, -length);
+		Vector3 basePoint = pos + new Vector3(0, 0, length);
 
 		for (int i = 0; i < 8; ++i) {
 			if (!this.Config.DrawGuides[i])
 				continue;
 
-			Vector3 rotated = rotatePoint(pos, north, -angle + deg2rad(i * 45), y);
+			Vector3 rotated = rotatePoint(pos, basePoint, angle + deg2rad(i * 45), y);
 			Gui.WorldToScreen(rotated, out Vector2 coord);
 			drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[i]), this.Config.LineThickness);
 		}
