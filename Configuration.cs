@@ -21,11 +21,11 @@ public class Configuration: IPluginConfiguration {
 	public int Version { get; set; } = 1;
 
 	public bool Enabled { get; set; } = true;
-	public bool OnlyRenderWhenFullyOnScreen { get; set; } = false;
-
-#if DEBUG
+	public bool OnlyRenderWhenCentreOnScreen { get; set; } = false;
+	public bool OnlyRenderWhenEndpointOnScreen { get; set; } = false;
+	public bool OnlyRenderWhenEitherEndOnScreen { get; set; } = true;
 	public bool DrawOnPlayers { get; set; } = false;
-#endif
+	public bool DrawTetherLine { get; set; } = false;
 
 	/// <summary>
 	/// Starts at front-left then goes clockwise
@@ -45,6 +45,8 @@ public class Configuration: IPluginConfiguration {
 	public short MinDrawRange { get; set; } = 0;
 	public short MaxDrawRange { get; set; } = byte.MaxValue;
 	public short LineThickness { get; set; } = 3;
+
+	public Vector4 TetherColour { get; set; } = new(1);
 
 	/// <summary>
 	/// Starts at front-left then goes clockwise

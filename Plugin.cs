@@ -67,13 +67,8 @@ public class Plugin: IDalamudPlugin {
 			return;
 
 		if (target.ObjectKind is ObjectKind.Player) {
-			// TODO make this configurable in non-debug?
-#if DEBUG
 			if (!this.Config.DrawOnPlayers)
 				return;
-#else
-			return;
-#endif
 		}
 
 		ImGuiHelpers.ForceNextWindowMainViewport();
@@ -92,14 +87,17 @@ public class Plugin: IDalamudPlugin {
 			return;
 		}
 
-		bool limited = this.Config.OnlyRenderWhenFullyOnScreen;
+		bool limitEither = this.Config.OnlyRenderWhenEitherEndOnScreen;
+		bool limitInner = this.Config.OnlyRenderWhenCentreOnScreen;
+		bool limitOuter = this.Config.OnlyRenderWhenEndpointOnScreen;
 		Vector3 pos = target.Position;
 		float y = pos.Y;
 		float angle = -target.Rotation;
 		float length = Math.Min(this.Config.SoftMaxRange, Math.Max(this.Config.SoftMinRange, target.HitboxRadius + this.Config.SoftDrawRange));
 		ImDrawListPtr drawing = ImGui.GetWindowDrawList();
 
-		if (!Gui.WorldToScreen(pos, out Vector2 centre) && limited)
+		bool targetOnScreen = Gui.WorldToScreen(pos, out Vector2 centre);
+		if (!targetOnScreen && !limitEither && limitInner)
 			return;
 
 		// +X = east, -X = west
@@ -111,8 +109,35 @@ public class Plugin: IDalamudPlugin {
 				continue;
 
 			Vector3 rotated = rotatePoint(pos, basePoint, angle + deg2rad(i * 45), y);
-			if (Gui.WorldToScreen(rotated, out Vector2 coord) || !limited)
-				drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[i]), this.Config.LineThickness);
+			bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
+
+			if (limitEither) {
+				if (!targetOnScreen && !endpointOnScreen)
+					continue;
+			}
+			else if (limitOuter && !endpointOnScreen) {
+				continue;
+			}
+
+			drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[i]), this.Config.LineThickness);
+		}
+
+		if (this.Config.DrawTetherLine) {
+			if (Plugin.Client.LocalPlayer is not null) {
+				bool playerOnScreen = Gui.WorldToScreen(Plugin.Client.LocalPlayer.Position, out Vector2 player);
+				bool draw = true;
+
+				if (limitEither) {
+					if (!targetOnScreen && !playerOnScreen)
+						draw = false;
+				}
+				else if (limitOuter && !playerOnScreen) {
+					draw = false;
+				}
+
+				if (draw)
+					drawing.AddLine(centre, player, ImGui.GetColorU32(this.Config.TetherColour), this.Config.LineThickness);
+			}
 		}
 
 		ImGui.End();
@@ -227,9 +252,13 @@ public class Plugin: IDalamudPlugin {
 				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
 				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
 				break;
+			case "tether":
+				this.Config.DrawTetherLine = state ?? !this.Config.DrawTetherLine;
+				Interface.UiBuilder.AddNotification($"Tether rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}", this.Name, NotificationType.Info);
+				break;
 			case "render":
 				this.Config.Enabled = state ?? !this.Config.Enabled;
-				Interface.UiBuilder.AddNotification($"Guide rendering {(this.Config.Enabled ? "on" : "off")}", this.Name, NotificationType.Info);
+				Interface.UiBuilder.AddNotification($"Guide rendering {(this.Config.Enabled ? "enabled" : "disabled")}", this.Name, NotificationType.Info);
 				break;
 			default:
 				Chat.PrintError($"Unknown target '{args[1]}'");
