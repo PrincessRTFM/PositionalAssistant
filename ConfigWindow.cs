@@ -4,6 +4,7 @@ using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 
 using ImGuiNET;
@@ -47,7 +48,8 @@ public class ConfigWindow: Window, IDisposable {
 	}
 
 	public override void Draw() {
-		ImGuitils utils = new(40);
+		float scale = ImGuiHelpers.GlobalScale;
+		ImGuitils utils = new(500);
 		bool changed = false;
 
 		short[] hack = new short[] {
@@ -102,17 +104,18 @@ public class ConfigWindow: Window, IDisposable {
 
 		ImGui.TextUnformatted("\nWhich guidelines do you want, and in what colours?");
 
-		ImGui.Columns(3, "###drawControls", false);
 		foreach (int i in new int[] { 7, 0, 1, 6, 2, 5, 4, 3 }) {
-			changed |= ImGui.Checkbox($"Show?###drawGuide{i}", ref drawing[i]);
+			changed |= ImGui.Checkbox($"###drawGuide{i}", ref drawing[i]);
 			utils.Tooltip($"Draw the {Configuration.Directions[i]} guideline?");
 			ImGui.SameLine();
 			changed |= ImGui.ColorEdit4($"Line colour for {Configuration.Directions[i]}", ref colours[i], ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel);
-			ImGui.NextColumn();
-			if (i is 6)
-				ImGui.NextColumn();
+			if (i is 7 or 5)
+				ImGui.SameLine(80 * scale);
+			else if (i is 0 or 6 or 4)
+				ImGui.SameLine(160 * scale);
+			else if (i is not 3)
+				ImGuiHelpers.ScaledDummy(30);
 		}
-		ImGui.Columns(1);
 
 		changed |= ImGui.Checkbox("Only draw lines when at least one of the points is on screen?", ref limitRender[0]);
 		utils.Tooltip("Some users have reported that lines being partially off-screen causes a visual bug, wherein the line just shoots off across your whole screen in a random direction."
@@ -142,6 +145,7 @@ public class ConfigWindow: Window, IDisposable {
 				+ "\n"
 				+ "\nOnly applies if the above override option is disabled.");
 
+		ImGui.PushItemWidth(470 * scale);
 		changed |= ImGui.SliderScalar("Guideline size modifier", ImGuiDataType.S16, ptrs[0], this.minModifierPtr, this.maxModifierPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
 		utils.Tooltip("The positional guidelines normally extend from the target's centre point out to the size of their hitbox. This allows you to make them longer or shorter.");
 
@@ -153,13 +157,14 @@ public class ConfigWindow: Window, IDisposable {
 
 		changed |= ImGui.SliderScalar("Line thickness", ImGuiDataType.U16, ptrs[3], this.minThicknessPtr, this.maxThicknessPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
 		utils.Tooltip("How wide/thick do you want the lines to be?");
+		ImGui.PopItemWidth();
 
 		ImGui.TextUnformatted("");
 		ImGui.Separator();
 		ImGui.TextUnformatted("");
 
 		if (ImGui.CollapsingHeader("Command Help")) {
-			ImGui.PushTextWrapPos(ImGui.GetFontSize() * 24);
+			ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
 			ImGui.TextUnformatted("Most of the above toggle settings can be changed via command:");
 			ImGui.Indent();
 			ImGui.TextUnformatted($"{Plugin.Command} <action> [target]");
