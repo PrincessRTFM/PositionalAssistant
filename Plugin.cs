@@ -1,4 +1,4 @@
-﻿namespace PositionalGuide;
+namespace PositionalGuide;
 
 using System;
 using System.Numerics;
