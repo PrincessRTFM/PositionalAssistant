@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32519.379
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PositionalGuide", "PositionalGuide.csproj", "{28FE69A9-B192-4BD8-B54F-87E9CC21EEDA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PositionalGuide", "PositionalGuide/PositionalGuide.csproj", "{28FE69A9-B192-4BD8-B54F-87E9CC21EEDA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
