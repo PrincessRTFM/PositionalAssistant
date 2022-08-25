@@ -14,7 +14,7 @@ on:
 env:
   SOLUTION_NAME: PositionalGuide
   INTERNAL_NAME: PositionalGuide
-  RELEASE_DIR: bin\Release.ILMerge\PositionalGuide
+  RELEASE_DIR: PositionalGuide\bin\Release\PositionalGuide
   PERSONAL_PLUGIN_REPO: PrincessRTFM/MyDalamudPlugins
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
