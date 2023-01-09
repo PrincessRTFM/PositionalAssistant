@@ -39,10 +39,10 @@ public class ConfigWindow: Window, IDisposable {
 		this.minThicknessPtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.maxThicknessPtr = Marshal.AllocHGlobal(ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)1), 0, this.stepPtr, ptrMemWidth);
-		Marshal.Copy(BitConverter.GetBytes(byte.MinValue), 0, this.minBoundingPtr, ptrMemWidth);
-		Marshal.Copy(BitConverter.GetBytes(byte.MaxValue), 0, this.maxBoundingPtr, ptrMemWidth);
-		Marshal.Copy(BitConverter.GetBytes(sbyte.MinValue), 0, this.minModifierPtr, ptrMemWidth);
-		Marshal.Copy(BitConverter.GetBytes(sbyte.MaxValue), 0, this.maxModifierPtr, ptrMemWidth);
+		Marshal.Copy(BitConverter.GetBytes((short)byte.MinValue), 0, this.minBoundingPtr, ptrMemWidth);
+		Marshal.Copy(BitConverter.GetBytes((short)byte.MaxValue), 0, this.maxBoundingPtr, ptrMemWidth);
+		Marshal.Copy(BitConverter.GetBytes((short)sbyte.MinValue), 0, this.minModifierPtr, ptrMemWidth);
+		Marshal.Copy(BitConverter.GetBytes((short)sbyte.MaxValue), 0, this.maxModifierPtr, ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)1), 0, this.minThicknessPtr, ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)5), 0, this.maxThicknessPtr, ptrMemWidth);
 	}
