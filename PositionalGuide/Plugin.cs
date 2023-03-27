@@ -1,4 +1,4 @@
-namespace PositionalGuide;
+namespace PrincessRTFM.PositionalGuide;
 
 using System;
 using System.Numerics;
