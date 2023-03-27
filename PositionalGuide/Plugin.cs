@@ -32,7 +32,7 @@ public class Plugin: IDalamudPlugin {
 	[PluginService] public static ClientState Client { get; private set; } = null!;
 	[PluginService] public static TargetManager Targets { get; private set; } = null!;
 
-	public Configuration Config;
+	public Configuration Config { get; private set; }
 
 	private readonly WindowSystem windowSystem;
 	private readonly ConfigWindow configWindow;
