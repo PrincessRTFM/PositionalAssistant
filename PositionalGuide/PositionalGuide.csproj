@@ -10,8 +10,4 @@
 
 	<Import Project="dalamud.targets" />
 
-	<ItemGroup>
-		<PackageReference Include="XivCommon" Version="7.0.0-alpha.1" />
-	</ItemGroup>
-
 </Project>
