@@ -6,6 +6,7 @@ using System.Numerics;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
@@ -15,6 +16,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Utility.Numerics;
 
 using ImGuiNET;
 
@@ -66,8 +68,13 @@ public class Plugin: IDalamudPlugin {
 		if (Targets.Target is not BattleChara target)
 			return;
 
+		if (Client.LocalPlayer is not PlayerCharacter player)
+			return;
+
 		if (target.ObjectKind is ObjectKind.Player) {
 			if (!this.Config.DrawOnPlayers)
+				return;
+			if (target != Client.LocalPlayer && this.Config.DrawOnSelfOnly)
 				return;
 		}
 
@@ -90,27 +97,36 @@ public class Plugin: IDalamudPlugin {
 		bool limitEither = this.Config.OnlyRenderWhenEitherEndOnScreen;
 		bool limitInner = this.Config.OnlyRenderWhenCentreOnScreen;
 		bool limitOuter = this.Config.OnlyRenderWhenEndpointOnScreen;
-		Vector3 pos = target.Position;
-		float y = pos.Y;
-		float angle = -target.Rotation;
+
+		Vector3 playerPos = player.Position;
+		Vector3 targetPos = target.Position;
+
+		// no, I don't know why it needs to be negated, but everything rotates the wrong way if it's not
+		float targetFacing = -target.Rotation;
+
+		// this is the length of the guidelines, no relation to the tether
 		float length = Math.Min(this.Config.SoftMaxRange, Math.Max(this.Config.SoftMinRange, target.HitboxRadius + this.Config.SoftDrawRange));
+
 		ImDrawListPtr drawing = ImGui.GetWindowDrawList();
 
-		bool targetOnScreen = Gui.WorldToScreen(pos, out Vector2 centre);
+		// we use `centre` later to rotate points, but if we're supposed to limit to when the TARGET is on screen and they aren't, then we stop early
+		bool targetOnScreen = Gui.WorldToScreen(targetPos, out Vector2 centre);
 		if (!targetOnScreen && !limitEither && limitInner)
 			return;
 
 		// +X = east, -X = west
 		// +Z = south, -Z = north
-		Vector3 basePoint = pos + new Vector3(0, 0, length);
+		Vector3 basePoint = targetPos + new Vector3(0, 0, length);
 
 		for (int i = 0; i < 8; ++i) {
 			if (!this.Config.DrawGuides[i])
 				continue;
 
-			Vector3 rotated = rotatePoint(pos, basePoint, angle + deg2rad(i * 45), y);
+			// this is the WORLD coordinate for the outer endpoint for the current guideline
+			Vector3 rotated = rotatePoint(targetPos, basePoint, targetFacing + deg2rad(i * 45));
 			bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
 
+			// depending on the render constraints, we may not actually want to draw anything
 			if (limitEither) {
 				if (!targetOnScreen && !endpointOnScreen)
 					continue;
@@ -122,22 +138,56 @@ public class Plugin: IDalamudPlugin {
 			drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[i]), this.Config.LineThickness);
 		}
 
+		// the tether line itself used to be pretty simple: from our position to the target's
+		// then I decided to allow controlling the maximum length of it and suddenly everything got Complicated
 		if (this.Config.DrawTetherLine) {
-			if (Plugin.Client.LocalPlayer is not null) {
-				bool playerOnScreen = Gui.WorldToScreen(Plugin.Client.LocalPlayer.Position, out Vector2 player);
-				bool draw = true;
 
-				if (limitEither) {
-					if (!targetOnScreen && !playerOnScreen)
-						draw = false;
-				}
-				else if (limitOuter && !playerOnScreen) {
+			// radians between DUE SOUTH (angle=0) and PLAYER POSITION using TARGET POSITION as the vertex
+			float angleToPlayer = angleBetween(targetPos, targetPos + Vector3.UnitZ, playerPos);
+
+			// radians between DUE SOUTH (angle=0) and TARGET POSITION using PLAYER POSITION as the vertex
+			float angleToTarget = angleBetween(playerPos, playerPos + Vector3.UnitZ, targetPos);
+
+			// the scalar offset from the target position towards their target ring, in the direction DUE SOUTH (angle=0)
+			// if set distance is -1, point is the centre of the target, so offset is 0
+			float offset = this.Config.TetherLengthInner == -1
+				? 0
+				: Math.Max(target.HitboxRadius - this.Config.SoftInnerTetherLength, 0);
+
+			// the world position for the tether's inner point, as the offset point rotated around the centre to face the player
+			Vector3 tetherInner = offset == 0
+				? targetPos
+				: rotatePoint(targetPos, targetPos + new Vector3(0, 0, offset), angleToPlayer);
+
+			// the world position for the tether's outer point, extending the set distance from the target's ring in the direction of the player
+			// or, if set distance is -1, to the player's centre; if -2, to the edge of the player's ring
+			Vector3 tetherOuter = this.Config.TetherLengthOuter switch {
+				-2 => rotatePoint(playerPos, playerPos + new Vector3(0, 0, player.HitboxRadius), angleToTarget),
+				-1 => playerPos,
+				_ => rotatePoint(targetPos, targetPos + new Vector3(0, 0, target.HitboxRadius + this.Config.SoftOuterTetherLength), angleToPlayer).WithY(playerPos.Y),
+			};
+
+			if (this.Config.FlattenTether)
+				tetherOuter.Y = tetherInner.Y;
+
+			// check whether we're allowed to render, in case points are off screen
+			bool insideOnScreen = Gui.WorldToScreen(tetherInner, out Vector2 inner);
+			bool outsideOnScreen = Gui.WorldToScreen(tetherOuter, out Vector2 outer);
+			bool draw = true;
+			if (limitEither) {
+				if (!insideOnScreen && !outsideOnScreen)
 					draw = false;
-				}
-
-				if (draw)
-					drawing.AddLine(centre, player, ImGui.GetColorU32(this.Config.TetherColour), this.Config.LineThickness);
 			}
+			else {
+				if (limitInner && !insideOnScreen)
+					draw = false;
+				if (limitOuter && !outsideOnScreen)
+					draw = false;
+			}
+
+			// and finally, draw the line (but only if we're allowed to)
+			if (draw)
+				drawing.AddLine(inner, outer, ImGui.GetColorU32(this.Config.TetherColour), this.Config.LineThickness);
 		}
 
 		ImGui.End();
@@ -145,7 +195,7 @@ public class Plugin: IDalamudPlugin {
 
 	private static float deg2rad(float degrees) => (float)(degrees * Math.PI / 180);
 
-	private static Vector3 rotatePoint(Vector3 centre, Vector3 originalPoint, double angleRadians, float y) {
+	private static Vector3 rotatePoint(Vector3 centre, Vector3 originalPoint, double angleRadians) {
 		// Adapted (read: shamelessly stolen) from https://github.com/PunishedPineapple/Distance
 
 		Vector3 translatedOriginPoint = originalPoint - centre;
@@ -154,10 +204,12 @@ public class Plugin: IDalamudPlugin {
 
 		return new(
 			((float)Math.Cos(translatedAngle + angleRadians) * distance) + centre.X,
-			y,
+			originalPoint.Y,
 			((float)Math.Sin(translatedAngle + angleRadians) * distance) + centre.Z
 		);
 	}
+
+	private static float angleBetween(Vector3 vertex, Vector3 a, Vector3 b) => MathF.Atan2(b.Z - vertex.Z, b.X - vertex.X) - MathF.Atan2(a.Z - vertex.Z, a.X - vertex.X);
 
 	internal void onPluginCommand(string command, string arguments) {
 		string[] args = arguments.Trim().Split();
