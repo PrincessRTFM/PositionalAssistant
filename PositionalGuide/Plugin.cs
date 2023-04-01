@@ -1,6 +1,8 @@
 namespace PrincessRTFM.PositionalGuide;
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 using Dalamud.Game.ClientState;
@@ -23,6 +25,9 @@ using ImGuiNET;
 public class Plugin: IDalamudPlugin {
 	public const string Command = "/posguide";
 
+	public const double ArcLength = 360 / 16;
+	public const int ArcSegmentCount = 8;
+
 	private bool disposed;
 
 	public string Name { get; } = "Positional Assistant";
@@ -41,6 +46,7 @@ public class Plugin: IDalamudPlugin {
 
 	public Plugin() {
 		this.Config = Interface.GetPluginConfig() as Configuration ?? new();
+		this.Config.Update();
 
 		this.configWindow = new(this);
 		this.windowSystem = new(this.GetType().Namespace!);
@@ -114,39 +120,90 @@ public class Plugin: IDalamudPlugin {
 		if (!targetOnScreen && !limitEither && limitInner)
 			return;
 
-		// +X = east, -X = west
-		// +Z = south, -Z = north
-		Vector3 basePoint = targetPos + new Vector3(0, 0, length);
+		float arcRadius = target.HitboxRadius;
 
-		for (int i = 0; i < 8; ++i) {
-			if (!this.Config.DrawGuides[i])
-				continue;
+		// this is where we render the lines and the circle segments, which used to be simpler when it was just the lines
+		for (int arcIndex = 0; arcIndex < 16; ++arcIndex) {
+			int line = (arcIndex - (arcIndex % 2)) / 2;
+			bool drawingLine = arcIndex % 2 == 0;
 
-			// this is the WORLD coordinate for the outer endpoint for the current guideline
-			Vector3 rotated = rotatePoint(targetPos, basePoint, targetFacing + deg2rad(i * 45));
-			bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
+			// +X = east, -X = west
+			// +Z = south, -Z = north
+			Vector3 guidelineBasePoint = targetPos + new Vector3(0, 0, length);
+			Vector3 arcBasePoint = targetPos + new Vector3(0, 0, target.HitboxRadius);
 
-			// depending on the render constraints, we may not actually want to draw anything
-			if (limitEither) {
-				if (!targetOnScreen && !endpointOnScreen)
+			// this is basically the same as the old setup for drawing the lines, working on every other iteration of this loop
+			if (drawingLine && this.Config.DrawGuides[line]) {
+
+				// this is the WORLD coordinate for the outer endpoint for the current guideline
+				Vector3 rotated = rotatePoint(targetPos, guidelineBasePoint, targetFacing + deg2rad(line * 45));
+				bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
+
+				// depending on the render constraints, we may not actually want to draw anything
+				if (limitEither) {
+					if (!targetOnScreen && !endpointOnScreen)
+						continue;
+				}
+				else if (limitOuter && !endpointOnScreen) {
 					continue;
-			}
-			else if (limitOuter && !endpointOnScreen) {
-				continue;
+				}
+
+				drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[line]), this.Config.LineThickness);
 			}
 
-			drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[i]), this.Config.LineThickness);
+			if (this.Config.DrawCircle) {
+				Vector4 arcColour = this.Config.LineColours[Configuration.IndexCircle];
+
+				// we basically bounce back and forth, starting at the arc's adjacent line and then going left (negative) when the arc is on the left or right (positive) otherwise,
+				// then flipping repeatedly until we either find an enabled line to pull the colour from, or cover all of the lines and find nothing
+				int sign = drawingLine ? 1 : -1; // inverted from the above description because the first loop uses 0, so this is flipped once before it has any effect
+				int arcColourLine = line;
+				for (int offset = 0; offset < Configuration.IndexCircle; ++offset) {
+					arcColourLine += offset * sign;
+					sign *= -1;
+					if (arcColourLine >= Configuration.IndexCircle)
+						arcColourLine %= Configuration.IndexCircle;
+					else if (arcColourLine < 0)
+						arcColourLine = Configuration.IndexCircle - arcColourLine;
+					if (this.Config.DrawGuides[arcColourLine]) {
+						arcColour = this.Config.LineColours[arcColourLine];
+						break;
+					}
+				}
+
+				// unfortunately, ImGui doesn't actually offer a way to draw arcs, so we're gonna have to do it manually... by drawing a series of line segments
+				// which means we need to calculate the endpoints for those line segments, along the arc, based on the calculated endpoints of the arc
+				// we start with the endpoints of the arc itself here
+				double endpointOffsetLeft = ((arcIndex - 1) * ArcLength) + (arcIndex / 2d);
+				double endpointOffsetRight = (arcIndex * ArcLength) + (arcIndex / 2d);
+				double totalArcRadians = deg2rad(endpointOffsetRight -  endpointOffsetLeft);
+				Vector3 arcEndpointLeft = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetLeft));
+				Vector3 arcEndpointRight = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetRight));
+
+				// only render the arc segments if the entire arc is on screen
+				bool renderingArc = true;
+				renderingArc &= Gui.WorldToScreen(arcEndpointLeft, out Vector2 screenEndpointLeft);
+				renderingArc &= Gui.WorldToScreen(arcEndpointRight, out Vector2 screenEndpointRight);
+
+				if (renderingArc) {
+					Vector2[] points = arcPoints(targetPos, arcEndpointLeft, totalArcRadians, ArcSegmentCount + 1)
+						.Select(world => { Gui.WorldToScreen(world, out Vector2 screen); return screen; })
+						.ToArray();
+					for (int i = 1; i < points.Length; ++i)
+						drawing.AddLine(points[i - 1], points[i], ImGui.GetColorU32(arcColour), this.Config.LineThickness + 2);
+				}
+			}
 		}
 
 		// the tether line itself used to be pretty simple: from our position to the target's
 		// then I decided to allow controlling the maximum length of it and suddenly everything got Complicated
-		if (this.Config.DrawTetherLine) {
+		if (this.Config.DrawTetherLine && target != player) {
 
 			// radians between DUE SOUTH (angle=0) and PLAYER POSITION using TARGET POSITION as the vertex
-			float angleToPlayer = angleBetween(targetPos, targetPos + Vector3.UnitZ, playerPos);
+			double angleToPlayer = angleBetween(targetPos, targetPos + Vector3.UnitZ, playerPos);
 
 			// radians between DUE SOUTH (angle=0) and TARGET POSITION using PLAYER POSITION as the vertex
-			float angleToTarget = angleBetween(playerPos, playerPos + Vector3.UnitZ, targetPos);
+			double angleToTarget = angleBetween(playerPos, playerPos + Vector3.UnitZ, targetPos);
 
 			// the scalar offset from the target position towards their target ring, in the direction DUE SOUTH (angle=0)
 			// if set distance is -1, point is the centre of the target, so offset is 0
@@ -193,23 +250,35 @@ public class Plugin: IDalamudPlugin {
 		ImGui.End();
 	}
 
-	private static float deg2rad(float degrees) => (float)(degrees * Math.PI / 180);
+	private static double deg2rad(double degrees) => degrees * Math.PI / 180;
 
-	private static Vector3 rotatePoint(Vector3 centre, Vector3 originalPoint, double angleRadians) {
+	private static Vector2 rotatePoint(Vector2 centre, Vector2 originalPoint, double angleRadians) {
 		// Adapted (read: shamelessly stolen) from https://github.com/PunishedPineapple/Distance
 
-		Vector3 translatedOriginPoint = originalPoint - centre;
-		float distance = new Vector2(translatedOriginPoint.X, translatedOriginPoint.Z).Length();
-		double translatedAngle = Math.Atan2(translatedOriginPoint.Z, translatedOriginPoint.X);
+		Vector2 translatedOriginPoint = originalPoint - centre;
+		float distance = new Vector2(translatedOriginPoint.X, translatedOriginPoint.Y).Length();
+		double translatedAngle = Math.Atan2(translatedOriginPoint.Y, translatedOriginPoint.X);
 
 		return new(
 			((float)Math.Cos(translatedAngle + angleRadians) * distance) + centre.X,
-			originalPoint.Y,
-			((float)Math.Sin(translatedAngle + angleRadians) * distance) + centre.Z
+			((float)Math.Sin(translatedAngle + angleRadians) * distance) + centre.Y
 		);
 	}
+	private static Vector3 rotatePoint(Vector3 centre, Vector3 originalPoint, double angleRadians) {
+		Vector2 rotated = rotatePoint(new Vector2(centre.X, centre.Z), new Vector2(originalPoint.X, originalPoint.Z), angleRadians);
+		return new(rotated.X, centre.Y, rotated.Y);
+	}
 
-	private static float angleBetween(Vector3 vertex, Vector3 a, Vector3 b) => MathF.Atan2(b.Z - vertex.Z, b.X - vertex.X) - MathF.Atan2(a.Z - vertex.Z, a.X - vertex.X);
+	private static double angleBetween(Vector2 vertex, Vector2 a, Vector2 b) => Math.Atan2(b.Y - vertex.Y, b.X - vertex.X) - Math.Atan2(a.Y - vertex.Y, a.X - vertex.X);
+	private static double angleBetween(Vector3 vertex, Vector3 a, Vector3 b) => angleBetween(new Vector2(vertex.X, vertex.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
+	
+	private static IEnumerable<Vector2> arcPoints(Vector2 centre, Vector2 start, double totalAngle, int count) {
+		double angleStep = totalAngle / (count - 1);
+		for (int i = 0; i < count; i++)
+			yield return rotatePoint(centre, start, angleStep * i);
+	}
+	private static IEnumerable<Vector3> arcPoints(Vector3 centre, Vector3 start, double totalAngle, int count)
+		=> arcPoints(new Vector2(centre.X, centre.Z), new Vector2(start.X, start.Z), totalAngle, count).Select(v2 => new Vector3(v2.X, centre.Y, v2.Y));
 
 	internal void onPluginCommand(string command, string arguments) {
 		string[] args = arguments.Trim().Split();
@@ -294,6 +363,20 @@ public class Plugin: IDalamudPlugin {
 				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
 				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
 				break;
+			case "lines":
+				this.Config.DrawFront = state ?? !this.Config.DrawFront;
+				this.Config.DrawRight = state ?? !this.Config.DrawRight;
+				this.Config.DrawBack = state ?? !this.Config.DrawBack;
+				this.Config.DrawLeft = state ?? !this.Config.DrawLeft;
+				this.Config.DrawFrontRight = state ?? !this.Config.DrawFrontRight;
+				this.Config.DrawBackRight = state ?? !this.Config.DrawBackRight;
+				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
+				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
+				break;
+			case "c":
+			case "circle":
+				this.Config.DrawCircle = state ?? !this.Config.DrawCircle;
+				break;
 			case "all":
 				this.Config.DrawFront = state ?? !this.Config.DrawFront;
 				this.Config.DrawRight = state ?? !this.Config.DrawRight;
@@ -303,6 +386,7 @@ public class Plugin: IDalamudPlugin {
 				this.Config.DrawBackRight = state ?? !this.Config.DrawBackRight;
 				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
 				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
+				this.Config.DrawCircle = state ?? !this.Config.DrawCircle;
 				break;
 			case "tether":
 				this.Config.DrawTetherLine = state ?? !this.Config.DrawTetherLine;

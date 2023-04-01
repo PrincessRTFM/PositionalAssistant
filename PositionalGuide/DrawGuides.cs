@@ -13,8 +13,10 @@ public enum DrawGuides: ushort {
 	BackRight = 32,
 	BackLeft = 64,
 	FrontLeft = 128,
+	Circle = 256,
 
 	Cardinals = Front | Right | Back | Left,
 	Diagonals = FrontLeft | FrontRight | BackRight | BackLeft,
-	All = Cardinals | Diagonals,
+	Lines = Cardinals | Diagonals,
+	All = Lines | Circle,
 }

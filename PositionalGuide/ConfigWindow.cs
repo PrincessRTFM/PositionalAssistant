@@ -139,14 +139,14 @@ public class ConfigWindow: Window, IDisposable {
 
 		// now we do the 3x3 for guidelines and the target ring
 		ImGui.TextUnformatted("\nWhich guidelines do you want, and in what colours?");
-		foreach (int i in new int[] { 7, 0, 1, 6, 2, 5, 4, 3 }) { // awful ugly hack, sorry
+		foreach (int i in new int[] { 7, 0, 1, 6, 8, 2, 5, 4, 3 }) { // awful ugly hack, sorry
 			changed |= ImGui.Checkbox($"###drawGuide{i}", ref drawing[i]);
-			utils.Tooltip($"Draw the {Configuration.Directions[i]} guideline?");
+			utils.Tooltip($"Draw the {Configuration.Directions[i]}?");
 			ImGui.SameLine();
 			changed |= ImGui.ColorEdit4($"Line colour for {Configuration.Directions[i]}", ref colours[i], ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel);
-			if (i is 7 or 5) // awful ugly hack (continuation)
+			if (i is 7 or 6 or 5) // awful ugly hack (continuation)
 				ImGui.SameLine(80 * scale);
-			else if (i is 0 or 6 or 4)
+			else if (i is 0 or 8 or 4)
 				ImGui.SameLine(160 * scale);
 			else if (i is not 3)
 				ImGuiHelpers.ScaledDummy(30);
@@ -232,10 +232,10 @@ public class ConfigWindow: Window, IDisposable {
 			ImGui.TextUnformatted("");
 			ImGui.TextUnformatted("Target may be any of the following, hyphyens optional, to toggle that line:");
 			ImGui.Indent();
-			ImGui.TextUnformatted("fl, front-left, f, front, fr, front-right, r, right, br, back-right, b, back, bl, back-left, l, left");
+			ImGui.TextUnformatted("fl, front-left, f, front, fr, front-right, r, right, br, back-right, b, back, bl, back-left, l, left, c, circle");
 			ImGui.Unindent();
 			ImGui.TextUnformatted("");
-			ImGui.TextUnformatted("Additionally, you can use 'cardinal', 'cardinals', 'diagonal', 'diagonals', and 'all' to affect multiple lines with a single command.");
+			ImGui.TextUnformatted("Additionally, you can use 'cardinal', 'cardinals', 'diagonal', 'diagonals', 'lines', and 'all' to affect multiple lines with a single command.");
 			ImGui.TextUnformatted("");
 			ImGui.TextUnformatted("Finally, you can use the target 'tether' to toggle tether line rendering, and the target 'render' (the default) to toggle showing guides at all without losing your settings.");
 			ImGui.PopTextWrapPos();
