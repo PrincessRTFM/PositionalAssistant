@@ -164,7 +164,7 @@ public class Plugin: IDalamudPlugin {
 					if (arcColourLine >= Configuration.IndexCircle)
 						arcColourLine %= Configuration.IndexCircle;
 					else if (arcColourLine < 0)
-						arcColourLine = Configuration.IndexCircle - arcColourLine;
+						arcColourLine = Configuration.IndexCircle + arcColourLine; // add because it's negative
 					if (this.Config.DrawGuides[arcColourLine]) {
 						arcColour = this.Config.LineColours[arcColourLine];
 						break;
