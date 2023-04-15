@@ -34,6 +34,13 @@ jobs:
       run: dotnet restore -r win
     - name: Build
       run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+    - name: Upload build
+      uses: actions/upload-artifact@v3
+      with:
+        name: PluginRepoZip
+        path: ${{ env.INTERNAL_NAME }}/bin/${{ env.CONFIGURATION }}/${{ env.INTERNAL_NAME }}
+        if-no-files-found: error
+        retention-days: 14
     - name: Tag
       run: |
         buildVersion=$(jq -j .AssemblyVersion "${{ env.INTERNAL_NAME }}/bin/${{ env.CONFIGURATION }}/${{ env.INTERNAL_NAME }}/${{ env.INTERNAL_NAME }}.json")
