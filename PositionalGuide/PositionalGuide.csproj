@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<Product>PositionalGuide</Product>
-		<Version>3.2.1</Version>
+		<Version>4.0.0</Version>
 		<Description>Provides drawn guidelines to see where you need to stand to hit enemies with positionals</Description>
 		<Copyright>Copyleft VariableVixen 2022</Copyright>
 		<PackageProjectUrl>https://github.com/PrincessRTFM/PositionalAssistant</PackageProjectUrl>
