@@ -8,6 +8,6 @@
 		<PackageProjectUrl>https://github.com/PrincessRTFM/PositionalAssistant</PackageProjectUrl>
 	</PropertyGroup>
 
-	<Import Project="dalamud.targets" />
+	<Import Project="dalamud.props" />
 
 </Project>
