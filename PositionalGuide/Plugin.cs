@@ -5,12 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
-using Dalamud.Game.ClientState;
 using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
 using Dalamud.Interface;
 using Dalamud.Interface.Internal.Notifications;
@@ -18,6 +16,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.Utility.Numerics;
 
 using ImGuiNET;
@@ -32,12 +31,12 @@ public class Plugin: IDalamudPlugin {
 
 	public string Name { get; } = "Positional Assistant";
 
-	[PluginService] public static GameGui Gui { get; private set; } = null!;
+	[PluginService] public static IGameGui Gui { get; private set; } = null!;
 	[PluginService] public static ChatGui Chat { get; private set; } = null!;
 	[PluginService] public static DalamudPluginInterface Interface { get; private set; } = null!;
-	[PluginService] public static CommandManager Commands { get; private set; } = null!;
-	[PluginService] public static ClientState Client { get; private set; } = null!;
-	[PluginService] public static TargetManager Targets { get; private set; } = null!;
+	[PluginService] public static ICommandManager Commands { get; private set; } = null!;
+	[PluginService] public static IClientState Client { get; private set; } = null!;
+	[PluginService] public static ITargetManager Targets { get; private set; } = null!;
 
 	public Configuration Config { get; private set; }
 
@@ -176,7 +175,7 @@ public class Plugin: IDalamudPlugin {
 				// we start with the endpoints of the arc itself here
 				double endpointOffsetLeft = ((arcIndex - 1) * ArcLength) + (arcIndex / 2d);
 				double endpointOffsetRight = (arcIndex * ArcLength) + (arcIndex / 2d);
-				double totalArcRadians = deg2rad(endpointOffsetRight -  endpointOffsetLeft);
+				double totalArcRadians = deg2rad(endpointOffsetRight - endpointOffsetLeft);
 				Vector3 arcEndpointLeft = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetLeft));
 				Vector3 arcEndpointRight = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetRight));
 
@@ -271,7 +270,7 @@ public class Plugin: IDalamudPlugin {
 
 	private static double angleBetween(Vector2 vertex, Vector2 a, Vector2 b) => Math.Atan2(b.Y - vertex.Y, b.X - vertex.X) - Math.Atan2(a.Y - vertex.Y, a.X - vertex.X);
 	private static double angleBetween(Vector3 vertex, Vector3 a, Vector3 b) => angleBetween(new Vector2(vertex.X, vertex.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
-	
+
 	private static IEnumerable<Vector2> arcPoints(Vector2 centre, Vector2 start, double totalAngle, int count) {
 		double angleStep = totalAngle / (count - 1);
 		for (int i = 0; i < count; i++)
