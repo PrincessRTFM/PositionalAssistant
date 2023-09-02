@@ -27,7 +27,7 @@ public class Configuration: IPluginConfiguration {
 		"back left guideline",
 		"left guideline",
 		"front left guideline",
-		"HIGHLY EXPERIMENTAL target circle",
+		"target circle",
 	};
 
 	public int Version { get; set; } = 1;
