@@ -9,12 +9,10 @@ using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Game.Gui;
-using Dalamud.Interface;
 using Dalamud.Interface.Internal.Notifications;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility.Numerics;
@@ -32,11 +30,12 @@ public class Plugin: IDalamudPlugin {
 	public string Name { get; } = "Positional Assistant";
 
 	[PluginService] public static IGameGui Gui { get; private set; } = null!;
-	[PluginService] public static ChatGui Chat { get; private set; } = null!;
+	[PluginService] public static IChatGui Chat { get; private set; } = null!;
 	[PluginService] public static DalamudPluginInterface Interface { get; private set; } = null!;
 	[PluginService] public static ICommandManager Commands { get; private set; } = null!;
 	[PluginService] public static IClientState Client { get; private set; } = null!;
 	[PluginService] public static ITargetManager Targets { get; private set; } = null!;
+	[PluginService] public static IPluginLog Log { get; private set; } = null!;
 
 	public Configuration Config { get; private set; }
 
@@ -408,7 +407,7 @@ public class Plugin: IDalamudPlugin {
 			this.configWindow.IsOpen = !this.configWindow.IsOpen;
 		}
 		else {
-			PluginLog.Error("Cannot toggle configuration window, reference does not exist");
+			Log.Error("Cannot toggle configuration window, reference does not exist");
 		}
 	}
 

@@ -1,6 +1,6 @@
 namespace PrincessRTFM.PositionalGuide;
 
-using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 
 using ImGuiNET;
 
