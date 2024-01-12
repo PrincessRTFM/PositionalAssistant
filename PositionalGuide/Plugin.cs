@@ -24,6 +24,7 @@ public class Plugin: IDalamudPlugin {
 
 	public const double ArcLength = 360 / 16;
 	public const int ArcSegmentCount = 8;
+	private enum CircleTypes { Target, Outer };
 
 	private bool disposed;
 
@@ -150,47 +151,14 @@ public class Plugin: IDalamudPlugin {
 			}
 
 			if (this.Config.DrawCircle) {
-				Vector4 arcColour = this.Config.LineColours[Configuration.IndexCircle];
-
-				// we basically bounce back and forth, starting at the arc's adjacent line and then going left (negative) when the arc is on the left or right (positive) otherwise,
-				// then flipping repeatedly until we either find an enabled line to pull the colour from, or cover all of the lines and find nothing
-				int sign = drawingLine ? 1 : -1; // inverted from the above description because the first loop uses 0, so this is flipped once before it has any effect
-				int arcColourLine = line;
-				for (int offset = 0; offset < Configuration.IndexCircle; ++offset) {
-					arcColourLine += offset * sign;
-					sign *= -1;
-					if (arcColourLine >= Configuration.IndexCircle)
-						arcColourLine %= Configuration.IndexCircle;
-					else if (arcColourLine < 0)
-						arcColourLine = Configuration.IndexCircle + arcColourLine; // add because it's negative
-					if (this.Config.DrawGuides[arcColourLine]) {
-						arcColour = this.Config.LineColours[arcColourLine];
-						break;
-					}
-				}
-
-				// unfortunately, ImGui doesn't actually offer a way to draw arcs, so we're gonna have to do it manually... by drawing a series of line segments
-				// which means we need to calculate the endpoints for those line segments, along the arc, based on the calculated endpoints of the arc
-				// we start with the endpoints of the arc itself here
-				double endpointOffsetLeft = ((arcIndex - 1) * ArcLength) + (arcIndex / 2d);
-				double endpointOffsetRight = (arcIndex * ArcLength) + (arcIndex / 2d);
-				double totalArcRadians = deg2rad(endpointOffsetRight - endpointOffsetLeft);
-				Vector3 arcEndpointLeft = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetLeft));
-				Vector3 arcEndpointRight = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetRight));
-
-				// only render the arc segments if the entire arc is on screen
-				bool renderingArc = true;
-				renderingArc &= Gui.WorldToScreen(arcEndpointLeft, out Vector2 screenEndpointLeft);
-				renderingArc &= Gui.WorldToScreen(arcEndpointRight, out Vector2 screenEndpointRight);
-
-				if (renderingArc) {
-					Vector2[] points = arcPoints(targetPos, arcEndpointLeft, totalArcRadians, ArcSegmentCount + 1)
-						.Select(world => { Gui.WorldToScreen(world, out Vector2 screen); return screen; })
-						.ToArray();
-					for (int i = 1; i < points.Length; ++i)
-						drawing.AddLine(points[i - 1], points[i], ImGui.GetColorU32(arcColour), this.Config.LineThickness + 2);
-				}
+				this.drawCircle(drawing, drawingLine, line, arcIndex, targetPos, arcBasePoint, targetFacing, CircleTypes.Target);
 			}
+
+			if (this.Config.DrawOuterCircle) {
+				this.drawCircle(drawing, drawingLine, line, arcIndex, targetPos, arcBasePoint, targetFacing, CircleTypes.Outer);
+
+			}
+
 		}
 
 		// the tether line itself used to be pretty simple: from our position to the target's
@@ -246,6 +214,66 @@ public class Plugin: IDalamudPlugin {
 		}
 
 		ImGui.End();
+	}
+
+	private void drawCircle(ImDrawListPtr drawing, bool drawingLine, int line, int arcIndex, Vector3 targetPos, Vector3 basePoint, float targetFacing, CircleTypes circleType) {
+		Vector4 arcColour = new Vector4(1, 0, 0, 1);
+		Vector3 arcBasePoint = basePoint;
+		bool forceCircleColour = false;
+
+		// handle all this differences between circles here to not blow up the argument list even further
+		switch (circleType) {
+			case CircleTypes.Target:
+				arcColour = this.Config.LineColours[Configuration.IndexCircle];
+				forceCircleColour =  this.Config.AlwaysUseCircleColours || this.Config.AlwaysUseCircleColoursTarget;
+				break;
+			case CircleTypes.Outer:
+				arcColour = this.Config.LineColours[Configuration.IndexOuterCircle];
+				forceCircleColour = this.Config.AlwaysUseCircleColours || this.Config.AlwaysUseCircleColoursOuter;
+				arcBasePoint += new Vector3(0, 0, this.Config.SoftOuterCircleRange);
+				break;
+		}
+
+		if (!forceCircleColour) {
+			// we basically bounce back and forth, starting at the arc's adjacent line and then going left (negative) when the arc is on the left or right (positive) otherwise,
+			// then flipping repeatedly until we either find an enabled line to pull the colour from, or cover all of the lines and find nothing
+			int sign = drawingLine ? 1 : -1; // inverted from the above description because the first loop uses 0, so this is flipped once before it has any effect
+			int arcColourLine = line;
+			for (int offset = 0; offset < Configuration.IndexCircle; ++offset) {
+				arcColourLine += offset * sign;
+				sign *= -1;
+				if (arcColourLine >= Configuration.IndexCircle)
+					arcColourLine %= Configuration.IndexCircle;
+				else if (arcColourLine < 0)
+					arcColourLine = Configuration.IndexCircle + arcColourLine; // add because it's negative
+				if (this.Config.DrawGuides[arcColourLine]) {
+					arcColour = this.Config.LineColours[arcColourLine];
+					break;
+				}
+			}
+		}
+
+		// unfortunately, ImGui doesn't actually offer a way to draw arcs, so we're gonna have to do it manually... by drawing a series of line segments
+		// which means we need to calculate the endpoints for those line segments, along the arc, based on the calculated endpoints of the arc
+		// we start with the endpoints of the arc itself here
+		double endpointOffsetLeft = ((arcIndex - 1) * ArcLength) + (arcIndex / 2d);
+		double endpointOffsetRight = (arcIndex * ArcLength) + (arcIndex / 2d);
+		double totalArcRadians = deg2rad(endpointOffsetRight - endpointOffsetLeft);
+		Vector3 arcEndpointLeft = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetLeft));
+		Vector3 arcEndpointRight = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetRight));
+
+		// only render the arc segments if the entire arc is on screen
+		bool renderingArc = true;
+		renderingArc &= Gui.WorldToScreen(arcEndpointLeft, out Vector2 screenEndpointLeft);
+		renderingArc &= Gui.WorldToScreen(arcEndpointRight, out Vector2 screenEndpointRight);
+
+		if (renderingArc) {
+			Vector2[] points = arcPoints(targetPos, arcEndpointLeft, totalArcRadians, ArcSegmentCount + 1)
+				.Select(world => { Gui.WorldToScreen(world, out Vector2 screen); return screen; })
+				.ToArray();
+			for (int i = 1; i < points.Length; ++i)
+				drawing.AddLine(points[i - 1], points[i], ImGui.GetColorU32(arcColour), this.Config.LineThickness + 2);
+		}
 	}
 
 	private static double deg2rad(double degrees) => degrees * Math.PI / 180;
@@ -373,7 +401,17 @@ public class Plugin: IDalamudPlugin {
 				break;
 			case "c":
 			case "circle":
+			case "target-circle":
 				this.Config.DrawCircle = state ?? !this.Config.DrawCircle;
+				break;
+			case "co":
+			case "outer-circle":
+			case "outer":
+				this.Config.DrawOuterCircle = state ?? !this.Config.DrawOuterCircle;
+				break;
+			case "circles":
+				this.Config.DrawCircle = state ?? !this.Config.DrawCircle;
+				this.Config.DrawOuterCircle = state ?? !this.Config.DrawOuterCircle;
 				break;
 			case "all":
 				this.Config.DrawFront = state ?? !this.Config.DrawFront;
@@ -385,6 +423,7 @@ public class Plugin: IDalamudPlugin {
 				this.Config.DrawBackLeft = state ?? !this.Config.DrawBackLeft;
 				this.Config.DrawFrontLeft = state ?? !this.Config.DrawFrontLeft;
 				this.Config.DrawCircle = state ?? !this.Config.DrawCircle;
+				this.Config.DrawOuterCircle = state ?? !this.Config.DrawOuterCircle;
 				break;
 			case "tether":
 				this.Config.DrawTetherLine = state ?? !this.Config.DrawTetherLine;
