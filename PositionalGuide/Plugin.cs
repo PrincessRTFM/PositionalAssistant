@@ -9,6 +9,7 @@ using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.Gui.Dtr;
 using Dalamud.Interface.Internal.Notifications;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
@@ -29,6 +30,7 @@ public class Plugin: IDalamudPlugin {
 	private bool disposed;
 
 	public string Name { get; } = "Positional Assistant";
+	public const string DTRDisplayName = "Guidelines";
 
 	[PluginService] public static IGameGui Gui { get; private set; } = null!;
 	[PluginService] public static IChatGui Chat { get; private set; } = null!;
@@ -42,12 +44,14 @@ public class Plugin: IDalamudPlugin {
 
 	private readonly WindowSystem windowSystem;
 	private readonly ConfigWindow configWindow;
+	private readonly DtrBarEntry dtrEntry;
 
-	public Plugin() {
+	public Plugin(IDtrBar dtrBar) {
 		this.Config = Interface.GetPluginConfig() as Configuration ?? new();
 		this.Config.Update();
 
 		this.configWindow = new(this);
+		this.configWindow.OnSettingsUpdate += this.settingsUpdated;
 		this.windowSystem = new(this.GetType().Namespace!);
 		this.windowSystem.AddWindow(this.configWindow);
 
@@ -55,10 +59,25 @@ public class Plugin: IDalamudPlugin {
 			HelpMessage = $"Open {this.Name}'s config window",
 			ShowInHelp = true,
 		});
+		
+		this.dtrEntry = dtrBar.Get(this.Name);
+		this.setDtrText();
+		this.dtrEntry.OnClick = this.dtrClickHandler;
 
 		Interface.UiBuilder.OpenConfigUi += this.toggleConfigUi;
 		Interface.UiBuilder.Draw += this.draw;
 	}
+
+	private void settingsUpdated() {
+		this.setDtrText();
+	}
+
+	private void dtrClickHandler() {
+		this.Config.Enabled = !this.Config.Enabled;
+		this.setDtrText();
+	}
+
+	private void setDtrText() => this.dtrEntry.Text = $"{DTRDisplayName}: {(this.Config.Enabled ? "On" : "Off")}";
 
 	internal void draw() {
 		this.windowSystem.Draw();
@@ -438,6 +457,7 @@ public class Plugin: IDalamudPlugin {
 				return;
 		}
 
+		this.settingsUpdated();
 		Interface.SavePluginConfig(this.Config);
 	}
 
@@ -459,10 +479,12 @@ public class Plugin: IDalamudPlugin {
 		if (disposing) {
 			Interface.UiBuilder.OpenConfigUi -= this.toggleConfigUi;
 			Interface.UiBuilder.Draw -= this.draw;
+			this.configWindow.OnSettingsUpdate -= this.settingsUpdated;
 
 			Commands.RemoveHandler(Command);
 
 			this.configWindow.Dispose();
+			this.dtrEntry.Remove();
 		}
 	}
 
