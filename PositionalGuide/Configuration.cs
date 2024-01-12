@@ -17,7 +17,8 @@ public class Configuration: IPluginConfiguration {
 		IndexBackLeft = 5,
 		IndexLeft = 6,
 		IndexFrontLeft = 7,
-		IndexCircle = 8;
+		IndexCircle = 8,
+		IndexOuterCircle = 9;
 	public static readonly string[] Directions = new string[] {
 		"front guideline",
 		"front right guideline",
@@ -28,6 +29,7 @@ public class Configuration: IPluginConfiguration {
 		"left guideline",
 		"front left guideline",
 		"target circle",
+		"outer circle",
 	};
 
 	public int Version { get; set; } = 1;
@@ -40,6 +42,9 @@ public class Configuration: IPluginConfiguration {
 	public bool DrawOnSelfOnly { get; set; } = true;
 	public bool DrawTetherLine { get; set; } = false;
 	public bool FlattenTether { get; set; } = false;
+	public bool AlwaysUseCircleColours { get; set; } = false;
+	public bool AlwaysUseCircleColoursTarget { get; set; } = false;
+	public bool AlwaysUseCircleColoursOuter { get; set; } = false;
 
 	/// <summary>
 	/// Starts at front then goes clockwise up to index=7, then circle at index=8
@@ -54,20 +59,21 @@ public class Configuration: IPluginConfiguration {
 		false, // left
 		false, // front left
 		false, // circle
+		false, // outer circle
 	};
 
 	public short ExtraDrawRange { get; set; } = 0;
 	public short MinDrawRange { get; set; } = 0;
 	public short MaxDrawRange { get; set; } = byte.MaxValue;
 	public short LineThickness { get; set; } = 3;
-
+	public short OuterCircleRange { get; set; } = 35;
 	public short TetherLengthInner { get; set; } = -1; // if -1, go to centre of target's hitbox
 	public short TetherLengthOuter { get; set; } = -1; // if -1, go to CENTRE of player's hitbox; if -2, go to EDGE of player's hitbox
 
 	public Vector4 TetherColour { get; set; } = new(1);
 
 	/// <summary>
-	/// Starts at front then goes clockwise up to index=7, then circle at index=8
+	/// Starts at front then goes clockwise up to index=7, then circle at index=8 and outer circle at index=9
 	/// </summary>
 	public Vector4[] LineColours { get; set; } = new Vector4[] {
 		new Vector4(1, 0, 0, 1), // front
@@ -79,21 +85,37 @@ public class Configuration: IPluginConfiguration {
 		new Vector4(0, 0, 1, 1), // left
 		new Vector4(1, 0, 0, 1), // front left
 		new Vector4(1, 1, 0, 1), // circle default
+		new Vector4(1, 1, 0, 1), // outer circle default
 	};
 
 	public void Update() {
-
-		if (this.DrawGuides.Length < 9) {
-			bool[] guides = new bool[9];
+		int initalLength = this.DrawGuides.Length;
+		if (initalLength < 10) {
+			bool[] guides = new bool[10];
 			Array.Copy(this.DrawGuides, guides, this.DrawGuides.Length);
-			guides[8] = false;
+			
+			if (initalLength < 9) {
+				guides[8] = false;
+			}
+			if (initalLength < 10) {
+				guides[9] = false; 
+			}
+
 			this.DrawGuides = guides;
 		}
 
-		if (this.LineColours.Length < 9) {
-			Vector4[] colours = new Vector4[9];
+		initalLength = this.LineColours.Length;
+		if (initalLength < 10) {
+			Vector4[] colours = new Vector4[10];
 			Array.Copy(this.LineColours, colours, this.LineColours.Length);
-			colours[8] = new Vector4(1, 1, 0, 1);
+			
+			if (initalLength < 9) {
+				colours[8] = new Vector4(1, 1, 0, 1);
+			}
+			if (initalLength < 10) {
+				colours[9] = new Vector4(1, 1, 0, 1);
+			}
+
 			this.LineColours = colours;
 		}
 
@@ -148,6 +170,12 @@ public class Configuration: IPluginConfiguration {
 	}
 
 	[JsonIgnore]
+	public bool DrawOuterCircle {
+		get => this.DrawGuides[IndexOuterCircle];
+		set => this.DrawGuides[IndexOuterCircle] = value;
+	}
+
+	[JsonIgnore]
 	public float SoftDrawRange => (float)this.ExtraDrawRange / 10;
 
 	[JsonIgnore]
@@ -161,5 +189,8 @@ public class Configuration: IPluginConfiguration {
 
 	[JsonIgnore]
 	public float SoftOuterTetherLength => (float)this.TetherLengthOuter / 10;
+
+	[JsonIgnore]
+	public float SoftOuterCircleRange => (float)this.OuterCircleRange / 10;
 	#endregion
 }

@@ -25,6 +25,8 @@ public class ConfigWindow: Window, IDisposable {
 	private readonly IntPtr maxModifierPtr;
 	private readonly IntPtr minThicknessPtr;
 	private readonly IntPtr maxThicknessPtr;
+	private readonly IntPtr minOuterCircleRangePtr;
+	private readonly IntPtr maxOuterCircleRangePtr;
 	private readonly IntPtr negativeOnePtr;
 	private readonly IntPtr negativeTwoPtr;
 	private readonly IntPtr maxTetherLengthPtr;
@@ -43,6 +45,8 @@ public class ConfigWindow: Window, IDisposable {
 		this.maxModifierPtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.minThicknessPtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.maxThicknessPtr = Marshal.AllocHGlobal(ptrMemWidth);
+		this.minOuterCircleRangePtr = Marshal.AllocHGlobal(ptrMemWidth);
+		this.maxOuterCircleRangePtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.negativeOnePtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.negativeTwoPtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.maxTetherLengthPtr = Marshal.AllocHGlobal(ptrMemWidth);
@@ -53,6 +57,8 @@ public class ConfigWindow: Window, IDisposable {
 		Marshal.Copy(BitConverter.GetBytes((short)sbyte.MaxValue), 0, this.maxModifierPtr, ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)1), 0, this.minThicknessPtr, ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)5), 0, this.maxThicknessPtr, ptrMemWidth);
+		Marshal.Copy(BitConverter.GetBytes((short)byte.MinValue), 0, this.minOuterCircleRangePtr, ptrMemWidth);
+		Marshal.Copy(BitConverter.GetBytes((short)byte.MaxValue), 0, this.maxOuterCircleRangePtr, ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)-1), 0, this.negativeOnePtr, ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)-2), 0, this.negativeTwoPtr, ptrMemWidth);
 		Marshal.Copy(BitConverter.GetBytes((short)32), 0, this.maxTetherLengthPtr, ptrMemWidth);
@@ -64,6 +70,11 @@ public class ConfigWindow: Window, IDisposable {
 		bool changed = false;
 
 		bool[] drawing = this.conf.DrawGuides;
+		bool[] circleColours = new bool[] {
+			this.conf.AlwaysUseCircleColours,
+			this.conf.AlwaysUseCircleColoursTarget,
+			this.conf.AlwaysUseCircleColoursOuter,
+		};
 		bool[] limitRender = new bool[] {
 			this.conf.OnlyRenderWhenEitherEndOnScreen,
 			this.conf.OnlyRenderWhenCentreOnScreen,
@@ -77,6 +88,7 @@ public class ConfigWindow: Window, IDisposable {
 			this.conf.MinDrawRange,
 			this.conf.MaxDrawRange,
 			this.conf.LineThickness,
+			this.conf.OuterCircleRange,
 			this.conf.TetherLengthInner,
 			this.conf.TetherLengthOuter,
 		};
@@ -139,7 +151,9 @@ public class ConfigWindow: Window, IDisposable {
 
 		// now we do the 3x3 for guidelines and the target ring
 		ImGui.TextUnformatted("\nWhich guidelines do you want, and in what colours?");
-		foreach (int i in new int[] { 7, 0, 1, 6, 8, 2, 5, 4, 3 }) { // awful ugly hack, sorry
+		foreach (int i in new int[] { 7, 0, 1,
+			                          6, 8, 2, 9,
+			                          5, 4, 3 }) { // awful ugly hack, sorry
 			changed |= ImGui.Checkbox($"###drawGuide{i}", ref drawing[i]);
 			utils.Tooltip($"Draw the {Configuration.Directions[i]}?");
 			ImGui.SameLine();
@@ -148,6 +162,8 @@ public class ConfigWindow: Window, IDisposable {
 				ImGui.SameLine(80 * scale);
 			else if (i is 0 or 8 or 4)
 				ImGui.SameLine(160 * scale);
+			else if (i is 2)
+				ImGui.SameLine(240 * scale);
 			else if (i is not 3)
 				ImGuiHelpers.ScaledDummy(30);
 		}
@@ -181,6 +197,26 @@ public class ConfigWindow: Window, IDisposable {
 
 		ImGui.PopStyleVar();
 
+		// Force circle colours either for all or defined individually for each
+		changed |= ImGui.Checkbox("Always use the defined colours for the circles?", ref circleColours[0]);
+		utils.Tooltip("This setting will cause the circle colours to be always the defined ones and disable the automatic colouring of the circle based on the guidelines.");
+
+		ImGui.PushStyleVar(ImGuiStyleVar.Alpha, circleColours[0] ? InactiveOptionAlpha : 1);
+
+		ImGui.Indent();
+		changed |= ImGui.Checkbox("Always use the defined colowr for the target circle?", ref circleColours[1]);
+		ImGui.Unindent();
+
+		utils.Tooltip("As above but only for the target circle.");
+
+		ImGui.Indent();
+		changed |= ImGui.Checkbox("Always use the defined color for the outer circle?", ref circleColours[2]);
+		ImGui.Unindent();
+
+		utils.Tooltip("As above but only for the outer circle.");
+
+		ImGui.PopStyleVar();
+
 		// sliders for numeric modifiers to the lines being drawn
 		ImGui.PushItemWidth(470 * scale);
 
@@ -196,15 +232,22 @@ public class ConfigWindow: Window, IDisposable {
 		changed |= ImGui.SliderScalar("Line thickness", ImGuiDataType.U16, ptrs[3], this.minThicknessPtr, this.maxThicknessPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
 		utils.Tooltip("How wide/thick do you want the lines to be?");
 
+		changed |= ImGui.SliderScalar("Outer circle range", ImGuiDataType.U16, ptrs[4], this.minOuterCircleRangePtr, this.maxOuterCircleRangePtr, "%i", ImGuiSliderFlags.AlwaysClamp);
+		utils.Tooltip("How big should the outer circle be?"
+			+ "\n"
+			+ "\nValue is an offset to the target circle, and a value of 10 corresponds to 1 yalm in the game. So, for a value of 10, the circle is 1 yalm larger in radius compared to the target circle."
+			+ "\n"
+			+ "\nA value of 35 very closely resembles the max melee range, meaning you can e.g. auto attack when the center of the player model is inside the circle.");
+
 		// sliders specifically to control the tether line length
 		ImGui.PushStyleVar(ImGuiStyleVar.Alpha, tether ? 1 : InactiveOptionAlpha);
 
-		changed |= ImGui.SliderScalar("Tether inner max length", ImGuiDataType.S16, ptrs[4], this.negativeOnePtr, this.maxTetherLengthPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
+		changed |= ImGui.SliderScalar("Tether inner max length", ImGuiDataType.S16, ptrs[5], this.negativeOnePtr, this.maxTetherLengthPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
 		utils.Tooltip("The inner tether will never extend beyond the centre of the target's hitbox."
 			+ "\n"
 			+ "\nSet to -1 to always go to the centre of the target's hitbox.");
 
-		changed |= ImGui.SliderScalar("Tether outer max length", ImGuiDataType.S16, ptrs[5], this.negativeTwoPtr, this.maxTetherLengthPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
+		changed |= ImGui.SliderScalar("Tether outer max length", ImGuiDataType.S16, ptrs[6], this.negativeTwoPtr, this.maxTetherLengthPtr, "%i", ImGuiSliderFlags.AlwaysClamp);
 		utils.Tooltip("The outer tether CAN extend beyond your hitbox."
 			+ "\n"
 			+ "\nSet to -1 to always go to the centre of the your hitbox."
@@ -232,7 +275,13 @@ public class ConfigWindow: Window, IDisposable {
 			ImGui.TextUnformatted("");
 			ImGui.TextUnformatted("Target may be any of the following, hyphyens optional, to toggle that line:");
 			ImGui.Indent();
-			ImGui.TextUnformatted("fl, front-left, f, front, fr, front-right, r, right, br, back-right, b, back, bl, back-left, l, left, c, circle");
+			ImGui.TextUnformatted("fl, front-left, f, front, fr, front-right, r, right, br, back-right, b, back, bl, back-left, l, left");
+			ImGui.Unindent();
+			ImGui.TextUnformatted("Targets for circles are:");
+			ImGui.Indent();
+			ImGui.TextUnformatted("For the target circle: c, circle, target-circle");
+			ImGui.TextUnformatted("For the outer circle: co, outer-circle, outer");
+			ImGui.TextUnformatted("For both: circles");
 			ImGui.Unindent();
 			ImGui.TextUnformatted("");
 			ImGui.TextUnformatted("Additionally, you can use 'cardinal', 'cardinals', 'diagonal', 'diagonals', 'lines', and 'all' to affect multiple lines with a single command.");
@@ -252,12 +301,16 @@ public class ConfigWindow: Window, IDisposable {
 			this.conf.OnlyRenderWhenEitherEndOnScreen = limitRender[0];
 			this.conf.OnlyRenderWhenCentreOnScreen = limitRender[1];
 			this.conf.OnlyRenderWhenEndpointOnScreen = limitRender[2];
+			this.conf.AlwaysUseCircleColours = circleColours[0];
+			this.conf.AlwaysUseCircleColoursTarget = circleColours[1];
+			this.conf.AlwaysUseCircleColoursOuter = circleColours[2];
 			this.conf.ExtraDrawRange = hack[0];
 			this.conf.MinDrawRange = hack[1];
 			this.conf.MaxDrawRange = hack[2];
 			this.conf.LineThickness = hack[3];
-			this.conf.TetherLengthInner = hack[4];
-			this.conf.TetherLengthOuter = hack[5];
+			this.conf.OuterCircleRange = hack[4];
+			this.conf.TetherLengthInner = hack[5];
+			this.conf.TetherLengthOuter = hack[6];
 			this.conf.DrawGuides = drawing;
 			this.conf.LineColours = colours;
 			Plugin.Interface.SavePluginConfig(this.conf);
