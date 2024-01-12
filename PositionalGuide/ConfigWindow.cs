@@ -235,9 +235,8 @@ public class ConfigWindow: Window, IDisposable {
 		changed |= ImGui.SliderScalar("Outer circle range", ImGuiDataType.U16, ptrs[4], this.minOuterCircleRangePtr, this.maxOuterCircleRangePtr, "%i", ImGuiSliderFlags.AlwaysClamp);
 		utils.Tooltip("How big should the outer circle be?"
 			+ "\n"
-			+ "\nValue is an offset to the target circle, and a value of 10 corresponds to 1 yalm in the game. So, for a value of 10, the circle is 1 yalm larger in radius compared to the target circle."
-			+ "\n"
-			+ "\nA value of 35 very closely resembles the max melee range, meaning you can e.g. auto attack when the center of the player model is inside the circle.");
+			+ "\nValue is an offset to the target circle, and a value of 10 corresponds to 1 yalm."
+			+ "\nA value of 35 very closely resembles the max melee range.");
 
 		// sliders specifically to control the tether line length
 		ImGui.PushStyleVar(ImGuiStyleVar.Alpha, tether ? 1 : InactiveOptionAlpha);
@@ -337,6 +336,8 @@ public class ConfigWindow: Window, IDisposable {
 		Marshal.FreeHGlobal(this.maxModifierPtr);
 		Marshal.FreeHGlobal(this.minThicknessPtr);
 		Marshal.FreeHGlobal(this.maxThicknessPtr);
+		Marshal.FreeHGlobal(this.minOuterCircleRangePtr);
+		Marshal.FreeHGlobal(this.maxOuterCircleRangePtr);
 		Marshal.FreeHGlobal(this.negativeOnePtr);
 		Marshal.FreeHGlobal(this.negativeTwoPtr);
 		Marshal.FreeHGlobal(this.maxTetherLengthPtr);
