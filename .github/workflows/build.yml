@@ -13,13 +13,6 @@ on:
       - master
       - main
       - release
-  pull_request:
-    paths-ignore:
-      - '*.md'
-    branches:
-      - master
-      - main
-      - release
 
 env:
   INTERNAL_NAME: PositionalGuide
