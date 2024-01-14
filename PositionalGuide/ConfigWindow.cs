@@ -34,6 +34,8 @@ public class ConfigWindow: Window, IDisposable {
 	private bool disposed;
 
 	private readonly Configuration conf;
+	public delegate void SettingsUpdate();
+	public event SettingsUpdate? OnSettingsUpdate;
 
 	public ConfigWindow(Plugin core) : base(core.Name, flags) {
 		this.RespectCloseHotkey = true;
@@ -313,6 +315,7 @@ public class ConfigWindow: Window, IDisposable {
 			this.conf.DrawGuides = drawing;
 			this.conf.LineColours = colours;
 			Plugin.Interface.SavePluginConfig(this.conf);
+			this.OnSettingsUpdate?.Invoke();
 		}
 
 		for (int i = 0; i < ptrs.Length; ++i)
