@@ -23,8 +23,13 @@ using ImGuiNET;
 public class Plugin: IDalamudPlugin {
 	public const string Command = "/posguide";
 
-	public const double ArcLength = 360 / 16;
-	public const int ArcSegmentCount = 8;
+	private const int circleSegmentCount = 128;
+	// lineIndexToRad and circleSegmentIdxToRad are fixed and only need to be calculated once at the start,
+	// since neither the number of lines nor the number of circle segments change
+	private readonly float[] lineIndexToAngle = Enumerable.Range(Configuration.IndexFront, Configuration.IndexFrontLeft + 1).Select(idx => (float)(idx * Math.PI / 4)).ToArray();
+	private readonly float[] circleSegmentIdxToAngle =  Enumerable.Range(0, circleSegmentCount).Select(idx => (float)(idx * (2.0 * Math.PI / circleSegmentCount))).ToArray();
+	private readonly Vector4[] circleSegmentIdxToColour = new Vector4[circleSegmentCount];
+
 	private enum CircleTypes { Target, Outer };
 
 	private bool disposed;
@@ -59,17 +64,19 @@ public class Plugin: IDalamudPlugin {
 			HelpMessage = $"Open {this.Name}'s config window",
 			ShowInHelp = true,
 		});
-		
+
 		this.dtrEntry = dtrBar.Get(this.Name);
 		this.setDtrText();
 		this.dtrEntry.OnClick = this.dtrClickHandler;
 
 		Interface.UiBuilder.OpenConfigUi += this.toggleConfigUi;
 		Interface.UiBuilder.Draw += this.draw;
+		this.updateCircleColours();
 	}
 
 	private void settingsUpdated() {
 		this.setDtrText();
+		this.updateCircleColours();
 	}
 
 	private void dtrClickHandler() {
@@ -78,6 +85,25 @@ public class Plugin: IDalamudPlugin {
 	}
 
 	private void setDtrText() => this.dtrEntry.Text = $"{DTRDisplayName}: {(this.Config.Enabled ? "On" : "Off")}";
+
+	private void updateCircleColours() {
+		// fill a list containing the index and angle of all active lines, for every circle segment look which line is closest to it in terms of angleDifference
+		// and use the color of that line, only needs to be done once as long as settings stay the same
+		List<(int index, float angle)> lineIndexesAndAngles = new();
+		for (int i = Configuration.IndexFront; i <= Configuration.IndexFrontLeft; ++i) {
+			if (this.Config.DrawGuides[i])
+				lineIndexesAndAngles.Add((i, this.lineIndexToAngle[i]));
+		}
+
+		if (lineIndexesAndAngles.Count == 0) {
+			return;
+		}
+
+		for (int i = 0; i < this.circleSegmentIdxToAngle.Length; ++i) {
+			(int index, float angle) closest = lineIndexesAndAngles.OrderBy(item => angleDifference(this.circleSegmentIdxToAngle[i], item.angle)).First();
+			this.circleSegmentIdxToColour[i] = this.Config.LineColours[closest.index];
+		}
+	}
 
 	internal void draw() {
 		this.windowSystem.Draw();
@@ -138,45 +164,33 @@ public class Plugin: IDalamudPlugin {
 		if (!targetOnScreen && !limitEither && limitInner)
 			return;
 
-		float arcRadius = target.HitboxRadius;
+		// +X = east, -X = west
+		// +Z = south, -Z = north
+		Vector3 guidelineBasePoint2 = targetPos + new Vector3(0, 0, length);
+		Vector3 circleBasePoint = targetPos + new Vector3(0, 0, target.HitboxRadius);
+		bool anyLineActive = false;
+		for (int lineIndex = Configuration.IndexFront; lineIndex <= Configuration.IndexFrontLeft; ++lineIndex) {
+			if (!this.Config.DrawGuides[lineIndex])
+				continue;
+            anyLineActive = true;
 
-		// this is where we render the lines and the circle segments, which used to be simpler when it was just the lines
-		for (int arcIndex = 0; arcIndex < 16; ++arcIndex) {
-			int line = (arcIndex - (arcIndex % 2)) / 2;
-			bool drawingLine = arcIndex % 2 == 0;
+			Vector3 rotated = rotatePoint(targetPos, guidelineBasePoint2, targetFacing + this.lineIndexToAngle[lineIndex]);
+			bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
+            if (limitEither) {
+                if (!targetOnScreen && !endpointOnScreen)
+                    continue;
+            } else if (limitOuter && !endpointOnScreen) {
+                continue;
+            }
+			drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[lineIndex]), this.Config.LineThickness);
+		}
 
-			// +X = east, -X = west
-			// +Z = south, -Z = north
-			Vector3 guidelineBasePoint = targetPos + new Vector3(0, 0, length);
-			Vector3 arcBasePoint = targetPos + new Vector3(0, 0, target.HitboxRadius);
+		if (this.Config.DrawCircle) {
+			this.drawCircle(drawing, targetPos, circleBasePoint, targetFacing, anyLineActive, CircleTypes.Target);
+		}
 
-			// this is basically the same as the old setup for drawing the lines, working on every other iteration of this loop
-			if (drawingLine && this.Config.DrawGuides[line]) {
-
-				// this is the WORLD coordinate for the outer endpoint for the current guideline
-				Vector3 rotated = rotatePoint(targetPos, guidelineBasePoint, targetFacing + deg2rad(line * 45));
-				bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
-
-				// depending on the render constraints, we may not actually want to draw anything
-				if (limitEither) {
-					if (!targetOnScreen && !endpointOnScreen)
-						continue;
-				}
-				else if (limitOuter && !endpointOnScreen) {
-					continue;
-				}
-
-				drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[line]), this.Config.LineThickness);
-			}
-
-			if (this.Config.DrawCircle) {
-				this.drawCircle(drawing, drawingLine, line, arcIndex, targetPos, arcBasePoint, targetFacing, CircleTypes.Target);
-			}
-
-			if (this.Config.DrawOuterCircle) {
-				this.drawCircle(drawing, drawingLine, line, arcIndex, targetPos, arcBasePoint, targetFacing, CircleTypes.Outer);
-
-			}
+		if (this.Config.DrawOuterCircle) {
+			this.drawCircle(drawing, targetPos, circleBasePoint, targetFacing, anyLineActive, CircleTypes.Outer);
 
 		}
 
@@ -235,67 +249,43 @@ public class Plugin: IDalamudPlugin {
 		ImGui.End();
 	}
 
-	private void drawCircle(ImDrawListPtr drawing, bool drawingLine, int line, int arcIndex, Vector3 targetPos, Vector3 basePoint, float targetFacing, CircleTypes circleType) {
-		Vector4 arcColour = new Vector4(1, 0, 0, 1);
-		Vector3 arcBasePoint = basePoint;
+	private void drawCircle(ImDrawListPtr drawing, Vector3 targetPos, Vector3 basePoint, float targetFacing, bool anyLineActive, CircleTypes circleType) {
+		Vector4 circleColour = new Vector4(1, 0, 0, 1);
+		Vector3 circleBasePoint = basePoint;
 		bool forceCircleColour = false;
 
-		// handle all this differences between circles here to not blow up the argument list even further
 		switch (circleType) {
 			case CircleTypes.Target:
-				arcColour = this.Config.LineColours[Configuration.IndexCircle];
-				forceCircleColour =  this.Config.AlwaysUseCircleColours || this.Config.AlwaysUseCircleColoursTarget;
+				circleColour = this.Config.LineColours[Configuration.IndexCircle];
+				forceCircleColour = this.Config.AlwaysUseCircleColours || this.Config.AlwaysUseCircleColoursTarget || !anyLineActive;
 				break;
 			case CircleTypes.Outer:
-				arcColour = this.Config.LineColours[Configuration.IndexOuterCircle];
-				forceCircleColour = this.Config.AlwaysUseCircleColours || this.Config.AlwaysUseCircleColoursOuter;
-				arcBasePoint += new Vector3(0, 0, this.Config.SoftOuterCircleRange);
+				circleColour = this.Config.LineColours[Configuration.IndexOuterCircle];
+				forceCircleColour = this.Config.AlwaysUseCircleColours || this.Config.AlwaysUseCircleColoursOuter || !anyLineActive;
+                circleBasePoint += new Vector3(0, 0, this.Config.SoftOuterCircleRange);
 				break;
 		}
 
-		if (!forceCircleColour) {
-			// we basically bounce back and forth, starting at the arc's adjacent line and then going left (negative) when the arc is on the left or right (positive) otherwise,
-			// then flipping repeatedly until we either find an enabled line to pull the colour from, or cover all of the lines and find nothing
-			int sign = drawingLine ? 1 : -1; // inverted from the above description because the first loop uses 0, so this is flipped once before it has any effect
-			int arcColourLine = line;
-			for (int offset = 0; offset < Configuration.IndexCircle; ++offset) {
-				arcColourLine += offset * sign;
-				sign *= -1;
-				if (arcColourLine >= Configuration.IndexCircle)
-					arcColourLine %= Configuration.IndexCircle;
-				else if (arcColourLine < 0)
-					arcColourLine = Configuration.IndexCircle + arcColourLine; // add because it's negative
-				if (this.Config.DrawGuides[arcColourLine]) {
-					arcColour = this.Config.LineColours[arcColourLine];
-					break;
-				}
+		Vector3 startPoint = rotatePoint(targetPos, circleBasePoint, targetFacing);
+		Vector3[] points = circlePoints(targetPos, startPoint, this.circleSegmentIdxToAngle).ToArray();
+		
+		(Vector2 point, bool render)[] screenPoints = new (Vector2 point, bool render)[points.Length];
+		for (int i = 0; i < points.Length; ++i) {
+			bool render = Gui.WorldToScreen(points[i], out Vector2 screenPoint);
+			screenPoints[i] = (screenPoint, render);
+		}
+
+		for (int i = 0; i < screenPoints.Length; ++i) {
+			int nextIndex = (i + 1) % screenPoints.Length;
+			(Vector2 point, bool render) screenPoint1 = screenPoints[i];
+			(Vector2 point, bool render) screenPoint2 = screenPoints[nextIndex];
+
+			if (screenPoint1.render && screenPoint2.render) {
+				Vector4 colour = forceCircleColour ? circleColour : this.circleSegmentIdxToColour[i];
+				drawing.AddLine(screenPoint1.point, screenPoint2.point, ImGui.GetColorU32(colour), this.Config.LineThickness + 2);
 			}
 		}
-
-		// unfortunately, ImGui doesn't actually offer a way to draw arcs, so we're gonna have to do it manually... by drawing a series of line segments
-		// which means we need to calculate the endpoints for those line segments, along the arc, based on the calculated endpoints of the arc
-		// we start with the endpoints of the arc itself here
-		double endpointOffsetLeft = ((arcIndex - 1) * ArcLength) + (arcIndex / 2d);
-		double endpointOffsetRight = (arcIndex * ArcLength) + (arcIndex / 2d);
-		double totalArcRadians = deg2rad(endpointOffsetRight - endpointOffsetLeft);
-		Vector3 arcEndpointLeft = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetLeft));
-		Vector3 arcEndpointRight = rotatePoint(targetPos, arcBasePoint, targetFacing + deg2rad(endpointOffsetRight));
-
-		// only render the arc segments if the entire arc is on screen
-		bool renderingArc = true;
-		renderingArc &= Gui.WorldToScreen(arcEndpointLeft, out Vector2 screenEndpointLeft);
-		renderingArc &= Gui.WorldToScreen(arcEndpointRight, out Vector2 screenEndpointRight);
-
-		if (renderingArc) {
-			Vector2[] points = arcPoints(targetPos, arcEndpointLeft, totalArcRadians, ArcSegmentCount + 1)
-				.Select(world => { Gui.WorldToScreen(world, out Vector2 screen); return screen; })
-				.ToArray();
-			for (int i = 1; i < points.Length; ++i)
-				drawing.AddLine(points[i - 1], points[i], ImGui.GetColorU32(arcColour), this.Config.LineThickness + 2);
-		}
 	}
-
-	private static double deg2rad(double degrees) => degrees * Math.PI / 180;
 
 	private static Vector2 rotatePoint(Vector2 centre, Vector2 originalPoint, double angleRadians) {
 		// Adapted (read: shamelessly stolen) from https://github.com/PunishedPineapple/Distance
@@ -316,14 +306,14 @@ public class Plugin: IDalamudPlugin {
 
 	private static double angleBetween(Vector2 vertex, Vector2 a, Vector2 b) => Math.Atan2(b.Y - vertex.Y, b.X - vertex.X) - Math.Atan2(a.Y - vertex.Y, a.X - vertex.X);
 	private static double angleBetween(Vector3 vertex, Vector3 a, Vector3 b) => angleBetween(new Vector2(vertex.X, vertex.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
+	private static float angleDifference(float a, float b) => (float)(Math.Min(Math.Abs(a - b), Math.Abs(Math.Abs(a - b) - (2 * Math.PI))));
 
-	private static IEnumerable<Vector2> arcPoints(Vector2 centre, Vector2 start, double totalAngle, int count) {
-		double angleStep = totalAngle / (count - 1);
-		for (int i = 0; i < count; i++)
-			yield return rotatePoint(centre, start, angleStep * i);
+	private static IEnumerable<Vector2> circlePoints(Vector2 centre, Vector2 start, float[] angles) {
+		foreach (float angle in angles)
+			yield return rotatePoint(centre, start, angle);
 	}
-	private static IEnumerable<Vector3> arcPoints(Vector3 centre, Vector3 start, double totalAngle, int count)
-		=> arcPoints(new Vector2(centre.X, centre.Z), new Vector2(start.X, start.Z), totalAngle, count).Select(v2 => new Vector3(v2.X, centre.Y, v2.Y));
+	private static IEnumerable<Vector3> circlePoints(Vector3 centre, Vector3 start, float[] angles)
+		=> circlePoints(new Vector2(centre.X, centre.Z), new Vector2(start.X, start.Z), angles).Select(v2 => new Vector3(v2.X, centre.Y, v2.Y));
 
 	internal void onPluginCommand(string command, string arguments) {
 		string[] args = arguments.Trim().Split();
