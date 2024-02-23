@@ -1,7 +1,9 @@
 using System;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
+using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 
@@ -39,7 +41,35 @@ public class ConfigWindow: Window, IDisposable {
 
 	public ConfigWindow(Plugin core) : base(core.Name, flags) {
 		this.RespectCloseHotkey = true;
+		this.TitleBarButtons = new() {
+			new() {
+				Priority = 0,
+				Icon = FontAwesomeIcon.Heart,
+				IconOffset = new(2, 1),
+				Click = _ => Process.Start(new ProcessStartInfo("https://ko-fi.com/V7V7IK9UU") { UseShellExecute = true }),
+				ShowTooltip = () => {
+					ImGui.BeginTooltip();
+					ImGui.TextUnformatted("Support me on ko-fi");
+					ImGui.EndTooltip();
+				},
+			},
+			new() {
+				Priority = 1,
+				Icon = FontAwesomeIcon.Code,
+				IconOffset = new(1, 1),
+				Click = _ => Process.Start(new ProcessStartInfo("https://github.com/PrincessRTFM/PositionalAssistant") { UseShellExecute = true }),
+				ShowTooltip = () => {
+					ImGui.BeginTooltip();
+					ImGui.TextUnformatted("Browse the github repo");
+					ImGui.EndTooltip();
+				},
+			}
+		};
+		this.AllowClickthrough = true;
+		this.AllowPinning = true;
+
 		this.conf = core.Config;
+
 		this.stepPtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.minBoundingPtr = Marshal.AllocHGlobal(ptrMemWidth);
 		this.maxBoundingPtr = Marshal.AllocHGlobal(ptrMemWidth);
