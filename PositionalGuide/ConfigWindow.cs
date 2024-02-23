@@ -1,5 +1,3 @@
-namespace PrincessRTFM.PositionalGuide;
-
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -8,6 +6,8 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 
 using ImGuiNET;
+
+namespace PrincessRTFM.PositionalGuide;
 
 public class ConfigWindow: Window, IDisposable {
 	public const float InactiveOptionAlpha = 0.5f;

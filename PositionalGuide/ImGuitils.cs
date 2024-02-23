@@ -1,8 +1,8 @@
-namespace PrincessRTFM.PositionalGuide;
-
 using Dalamud.Interface.Utility;
 
 using ImGuiNET;
+
+namespace PrincessRTFM.PositionalGuide;
 
 internal class ImGuitils {
 	public int TooltipPixelWrapWidth;

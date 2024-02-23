@@ -1,6 +1,6 @@
-namespace PrincessRTFM.PositionalGuide;
-
 using System;
+
+namespace PrincessRTFM.PositionalGuide;
 
 [Flags]
 public enum DrawGuides: ushort {

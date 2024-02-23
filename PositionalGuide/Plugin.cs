@@ -1,5 +1,3 @@
-namespace PrincessRTFM.PositionalGuide;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +17,8 @@ using Dalamud.Plugin.Services;
 using Dalamud.Utility.Numerics;
 
 using ImGuiNET;
+
+namespace PrincessRTFM.PositionalGuide;
 
 public class Plugin: IDalamudPlugin {
 	public const string Command = "/posguide";

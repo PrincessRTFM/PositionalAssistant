@@ -1,11 +1,11 @@
-namespace PrincessRTFM.PositionalGuide;
-
 using System;
 using System.Numerics;
 
 using Dalamud.Configuration;
 
 using Newtonsoft.Json;
+
+namespace PrincessRTFM.PositionalGuide;
 
 public class Configuration: IPluginConfiguration {
 	public const int
@@ -93,12 +93,12 @@ public class Configuration: IPluginConfiguration {
 		if (initalLength < 10) {
 			bool[] guides = new bool[10];
 			Array.Copy(this.DrawGuides, guides, this.DrawGuides.Length);
-			
+
 			if (initalLength < 9) {
 				guides[8] = false;
 			}
 			if (initalLength < 10) {
-				guides[9] = false; 
+				guides[9] = false;
 			}
 
 			this.DrawGuides = guides;
@@ -108,7 +108,7 @@ public class Configuration: IPluginConfiguration {
 		if (initalLength < 10) {
 			Vector4[] colours = new Vector4[10];
 			Array.Copy(this.LineColours, colours, this.LineColours.Length);
-			
+
 			if (initalLength < 9) {
 				colours[8] = new Vector4(1, 1, 0, 1);
 			}
