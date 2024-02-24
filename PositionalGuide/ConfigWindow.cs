@@ -15,8 +15,8 @@ public class ConfigWindow: Window, IDisposable {
 	public const float InactiveOptionAlpha = 0.5f;
 
 	private const ImGuiWindowFlags flags = ImGuiWindowFlags.None
-		| ImGuiWindowFlags.NoScrollbar
-		| ImGuiWindowFlags.NoScrollWithMouse
+		//| ImGuiWindowFlags.NoScrollbar
+		//| ImGuiWindowFlags.NoScrollWithMouse
 		| ImGuiWindowFlags.AlwaysAutoResize;
 	private const int ptrMemWidth = sizeof(short);
 
@@ -67,6 +67,9 @@ public class ConfigWindow: Window, IDisposable {
 		};
 		this.AllowClickthrough = true;
 		this.AllowPinning = true;
+		this.SizeConstraints = new() {
+			MaximumSize = new(700, 900),
+		};
 
 		this.conf = core.Config;
 
