@@ -184,6 +184,12 @@ public class ConfigWindow: Window, IDisposable {
 		ImGui.Unindent();
 		ImGui.PopStyleVar();
 
+		// Settings for controlling what goes in the server info bar are handled in dalamud's own /xlsettings window
+		ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
+		ImGui.TextUnformatted($"\nIf you want to toggle the server info bar element, you will need to open Dalamud's settings"
+			+ " (using the `/xlsettings` command) and uncheck it on the Server Info Bar tab.");
+		ImGui.PopTextWrapPos();
+
 		// now we do the 3x3 for guidelines and the target ring
 		ImGui.TextUnformatted("\nWhich guidelines do you want, and in what colours?");
 		foreach (int i in new int[] { 7, 0, 1,
