@@ -67,6 +67,7 @@ public class Plugin: IDalamudPlugin {
 
 		this.dtrEntry = dtrBar.Get(this.Name);
 		this.setDtrText();
+		this.dtrEntry.Tooltip = "Click to toggle all rendering";
 		this.dtrEntry.OnClick = this.dtrClickHandler;
 
 		Interface.UiBuilder.OpenConfigUi += this.toggleConfigUi;
