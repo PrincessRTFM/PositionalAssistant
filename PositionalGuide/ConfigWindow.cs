@@ -39,7 +39,7 @@ public class ConfigWindow: Window, IDisposable {
 	public delegate void SettingsUpdate();
 	public event SettingsUpdate? OnSettingsUpdate;
 
-	public ConfigWindow(Plugin core) : base(core.Name, flags) {
+	public ConfigWindow(Plugin core) : base(Plugin.Name, flags) {
 		this.RespectCloseHotkey = true;
 		this.TitleBarButtons = new() {
 			new() {

@@ -34,7 +34,7 @@ public class Plugin: IDalamudPlugin {
 
 	private bool disposed;
 
-	public string Name { get; } = "Positional Assistant";
+	public const string Name = "Positional Assistant";
 	public const string DTRDisplayName = "Guidelines";
 
 	[PluginService] public static IGameGui Gui { get; private set; } = null!;
@@ -44,6 +44,7 @@ public class Plugin: IDalamudPlugin {
 	[PluginService] public static IClientState Client { get; private set; } = null!;
 	[PluginService] public static ITargetManager Targets { get; private set; } = null!;
 	[PluginService] public static IPluginLog Log { get; private set; } = null!;
+	[PluginService] public static INotificationManager Notifications { get; private set; } = null!;
 
 	public Configuration Config { get; private set; }
 
@@ -56,38 +57,38 @@ public class Plugin: IDalamudPlugin {
 		this.Config.Update();
 
 		this.configWindow = new(this);
-		this.configWindow.OnSettingsUpdate += this.settingsUpdated;
+		this.configWindow.OnSettingsUpdate += this.SettingsUpdated;
 		this.windowSystem = new(this.GetType().Namespace!);
 		this.windowSystem.AddWindow(this.configWindow);
 
-		Commands.AddHandler(Command, new(this.onPluginCommand) {
-			HelpMessage = $"Open {this.Name}'s config window",
+		Commands.AddHandler(Command, new(this.OnPluginCommand) {
+			HelpMessage = $"Open {Name}'s config window",
 			ShowInHelp = true,
 		});
 
-		this.dtrEntry = dtrBar.Get(this.Name);
-		this.setDtrText();
+		this.dtrEntry = dtrBar.Get(Name);
+		this.SetDtrText();
 		this.dtrEntry.Tooltip = "Click to toggle all rendering";
-		this.dtrEntry.OnClick = this.dtrClickHandler;
+		this.dtrEntry.OnClick = this.DtrClickHandler;
 
-		Interface.UiBuilder.OpenConfigUi += this.toggleConfigUi;
-		Interface.UiBuilder.Draw += this.draw;
-		this.updateCircleColours();
+		Interface.UiBuilder.OpenConfigUi += this.ToggleConfigUi;
+		Interface.UiBuilder.Draw += this.Draw;
+		this.UpdateCircleColours();
 	}
 
-	private void settingsUpdated() {
-		this.setDtrText();
-		this.updateCircleColours();
+	private void SettingsUpdated() {
+		this.SetDtrText();
+		this.UpdateCircleColours();
 	}
 
-	private void dtrClickHandler() {
+	private void DtrClickHandler() {
 		this.Config.Enabled = !this.Config.Enabled;
-		this.setDtrText();
+		this.SetDtrText();
 	}
 
-	private void setDtrText() => this.dtrEntry.Text = $"{DTRDisplayName}: {(this.Config.Enabled ? "On" : "Off")}";
+	private void SetDtrText() => this.dtrEntry.Text = $"{DTRDisplayName}: {(this.Config.Enabled ? "On" : "Off")}";
 
-	private void updateCircleColours() {
+	private void UpdateCircleColours() {
 		// fill a list containing the index and angle of all active lines, for every circle segment look which line is closest to it in terms of angleDifference
 		// and use the color of that line, only needs to be done once as long as settings stay the same
 		List<(int index, float angle)> lineIndexesAndAngles = new();
@@ -101,12 +102,12 @@ public class Plugin: IDalamudPlugin {
 		}
 
 		for (int i = 0; i < this.circleSegmentIdxToAngle.Length; ++i) {
-			(int index, float angle) closest = lineIndexesAndAngles.OrderBy(item => angleDifference(this.circleSegmentIdxToAngle[i], item.angle)).First();
-			this.circleSegmentIdxToColour[i] = this.Config.LineColours[closest.index];
+			(int index, float angle) = lineIndexesAndAngles.OrderBy(item => AngleDifference(this.circleSegmentIdxToAngle[i], item.angle)).First();
+			this.circleSegmentIdxToColour[i] = this.Config.LineColours[index];
 		}
 	}
 
-	internal void draw() {
+	internal void Draw() {
 		this.windowSystem.Draw();
 
 		// If positionals matter in PVP, I won't help you. If they don't, I won't distract you.
@@ -175,7 +176,7 @@ public class Plugin: IDalamudPlugin {
 				continue;
             anyLineActive = true;
 
-			Vector3 rotated = rotatePoint(targetPos, guidelineBasePoint2, targetFacing + this.lineIndexToAngle[lineIndex]);
+			Vector3 rotated = RotatePoint(targetPos, guidelineBasePoint2, targetFacing + this.lineIndexToAngle[lineIndex]);
 			bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
             if (limitEither) {
                 if (!targetOnScreen && !endpointOnScreen)
@@ -187,11 +188,11 @@ public class Plugin: IDalamudPlugin {
 		}
 
 		if (this.Config.DrawCircle) {
-			this.drawCircle(drawing, targetPos, circleBasePoint, targetFacing, anyLineActive, CircleTypes.Target);
+			this.DrawCircle(drawing, targetPos, circleBasePoint, targetFacing, anyLineActive, CircleTypes.Target);
 		}
 
 		if (this.Config.DrawOuterCircle) {
-			this.drawCircle(drawing, targetPos, circleBasePoint, targetFacing, anyLineActive, CircleTypes.Outer);
+			this.DrawCircle(drawing, targetPos, circleBasePoint, targetFacing, anyLineActive, CircleTypes.Outer);
 
 		}
 
@@ -200,10 +201,10 @@ public class Plugin: IDalamudPlugin {
 		if (this.Config.DrawTetherLine && target != player) {
 
 			// radians between DUE SOUTH (angle=0) and PLAYER POSITION using TARGET POSITION as the vertex
-			double angleToPlayer = angleBetween(targetPos, targetPos + Vector3.UnitZ, playerPos);
+			double angleToPlayer = AngleBetween(targetPos, targetPos + Vector3.UnitZ, playerPos);
 
 			// radians between DUE SOUTH (angle=0) and TARGET POSITION using PLAYER POSITION as the vertex
-			double angleToTarget = angleBetween(playerPos, playerPos + Vector3.UnitZ, targetPos);
+			double angleToTarget = AngleBetween(playerPos, playerPos + Vector3.UnitZ, targetPos);
 
 			// the scalar offset from the target position towards their target ring, in the direction DUE SOUTH (angle=0)
 			// if set distance is -1, point is the centre of the target, so offset is 0
@@ -214,14 +215,14 @@ public class Plugin: IDalamudPlugin {
 			// the world position for the tether's inner point, as the offset point rotated around the centre to face the player
 			Vector3 tetherInner = offset == 0
 				? targetPos
-				: rotatePoint(targetPos, targetPos + new Vector3(0, 0, offset), angleToPlayer);
+				: RotatePoint(targetPos, targetPos + new Vector3(0, 0, offset), angleToPlayer);
 
 			// the world position for the tether's outer point, extending the set distance from the target's ring in the direction of the player
 			// or, if set distance is -1, to the player's centre; if -2, to the edge of the player's ring
 			Vector3 tetherOuter = this.Config.TetherLengthOuter switch {
-				-2 => rotatePoint(playerPos, playerPos + new Vector3(0, 0, player.HitboxRadius), angleToTarget),
+				-2 => RotatePoint(playerPos, playerPos + new Vector3(0, 0, player.HitboxRadius), angleToTarget),
 				-1 => playerPos,
-				_ => rotatePoint(targetPos, targetPos + new Vector3(0, 0, target.HitboxRadius + this.Config.SoftOuterTetherLength), angleToPlayer).WithY(playerPos.Y),
+				_ => RotatePoint(targetPos, targetPos + new Vector3(0, 0, target.HitboxRadius + this.Config.SoftOuterTetherLength), angleToPlayer).WithY(playerPos.Y),
 			};
 
 			if (this.Config.FlattenTether)
@@ -250,8 +251,8 @@ public class Plugin: IDalamudPlugin {
 		ImGui.End();
 	}
 
-	private void drawCircle(ImDrawListPtr drawing, Vector3 targetPos, Vector3 basePoint, float targetFacing, bool anyLineActive, CircleTypes circleType) {
-		Vector4 circleColour = new Vector4(1, 0, 0, 1);
+	private void DrawCircle(ImDrawListPtr drawing, Vector3 targetPos, Vector3 basePoint, float targetFacing, bool anyLineActive, CircleTypes circleType) {
+		Vector4 circleColour = new(1, 0, 0, 1);
 		Vector3 circleBasePoint = basePoint;
 		bool forceCircleColour = false;
 
@@ -267,8 +268,8 @@ public class Plugin: IDalamudPlugin {
 				break;
 		}
 
-		Vector3 startPoint = rotatePoint(targetPos, circleBasePoint, targetFacing);
-		Vector3[] points = circlePoints(targetPos, startPoint, this.circleSegmentIdxToAngle).ToArray();
+		Vector3 startPoint = RotatePoint(targetPos, circleBasePoint, targetFacing);
+		Vector3[] points = CirclePoints(targetPos, startPoint, this.circleSegmentIdxToAngle).ToArray();
 		
 		(Vector2 point, bool render)[] screenPoints = new (Vector2 point, bool render)[points.Length];
 		for (int i = 0; i < points.Length; ++i) {
@@ -278,17 +279,19 @@ public class Plugin: IDalamudPlugin {
 
 		for (int i = 0; i < screenPoints.Length; ++i) {
 			int nextIndex = (i + 1) % screenPoints.Length;
-			(Vector2 point, bool render) screenPoint1 = screenPoints[i];
-			(Vector2 point, bool render) screenPoint2 = screenPoints[nextIndex];
+#pragma warning disable IDE0042 // Deconstruct variable declaration
+			(Vector2 point, bool render) curPoint = screenPoints[i];
+			(Vector2 point, bool render) nextPoint = screenPoints[nextIndex];
+#pragma warning restore IDE0042 // Deconstruct variable declaration
 
-			if (screenPoint1.render && screenPoint2.render) {
+			if (curPoint.render && nextPoint.render) {
 				Vector4 colour = forceCircleColour ? circleColour : this.circleSegmentIdxToColour[i];
-				drawing.AddLine(screenPoint1.point, screenPoint2.point, ImGui.GetColorU32(colour), this.Config.LineThickness + 2);
+				drawing.AddLine(curPoint.point, nextPoint.point, ImGui.GetColorU32(colour), this.Config.LineThickness + 2);
 			}
 		}
 	}
 
-	private static Vector2 rotatePoint(Vector2 centre, Vector2 originalPoint, double angleRadians) {
+	private static Vector2 RotatePoint(Vector2 centre, Vector2 originalPoint, double angleRadians) {
 		// Adapted (read: shamelessly stolen) from https://github.com/PunishedPineapple/Distance
 
 		Vector2 translatedOriginPoint = originalPoint - centre;
@@ -300,23 +303,23 @@ public class Plugin: IDalamudPlugin {
 			((float)Math.Sin(translatedAngle + angleRadians) * distance) + centre.Y
 		);
 	}
-	private static Vector3 rotatePoint(Vector3 centre, Vector3 originalPoint, double angleRadians) {
-		Vector2 rotated = rotatePoint(new Vector2(centre.X, centre.Z), new Vector2(originalPoint.X, originalPoint.Z), angleRadians);
+	private static Vector3 RotatePoint(Vector3 centre, Vector3 originalPoint, double angleRadians) {
+		Vector2 rotated = RotatePoint(new Vector2(centre.X, centre.Z), new Vector2(originalPoint.X, originalPoint.Z), angleRadians);
 		return new(rotated.X, centre.Y, rotated.Y);
 	}
 
-	private static double angleBetween(Vector2 vertex, Vector2 a, Vector2 b) => Math.Atan2(b.Y - vertex.Y, b.X - vertex.X) - Math.Atan2(a.Y - vertex.Y, a.X - vertex.X);
-	private static double angleBetween(Vector3 vertex, Vector3 a, Vector3 b) => angleBetween(new Vector2(vertex.X, vertex.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
-	private static float angleDifference(float a, float b) => (float)(Math.Min(Math.Abs(a - b), Math.Abs(Math.Abs(a - b) - (2 * Math.PI))));
+	private static double AngleBetween(Vector2 vertex, Vector2 a, Vector2 b) => Math.Atan2(b.Y - vertex.Y, b.X - vertex.X) - Math.Atan2(a.Y - vertex.Y, a.X - vertex.X);
+	private static double AngleBetween(Vector3 vertex, Vector3 a, Vector3 b) => AngleBetween(new Vector2(vertex.X, vertex.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
+	private static float AngleDifference(float a, float b) => (float)(Math.Min(Math.Abs(a - b), Math.Abs(Math.Abs(a - b) - (2 * Math.PI))));
 
-	private static IEnumerable<Vector2> circlePoints(Vector2 centre, Vector2 start, float[] angles) {
+	private static IEnumerable<Vector2> CirclePoints(Vector2 centre, Vector2 start, float[] angles) {
 		foreach (float angle in angles)
-			yield return rotatePoint(centre, start, angle);
+			yield return RotatePoint(centre, start, angle);
 	}
-	private static IEnumerable<Vector3> circlePoints(Vector3 centre, Vector3 start, float[] angles)
-		=> circlePoints(new Vector2(centre.X, centre.Z), new Vector2(start.X, start.Z), angles).Select(v2 => new Vector3(v2.X, centre.Y, v2.Y));
+	private static IEnumerable<Vector3> CirclePoints(Vector3 centre, Vector3 start, float[] angles)
+		=> CirclePoints(new Vector2(centre.X, centre.Z), new Vector2(start.X, start.Z), angles).Select(v2 => new Vector3(v2.X, centre.Y, v2.Y));
 
-	internal void onPluginCommand(string command, string arguments) {
+	internal void OnPluginCommand(string command, string arguments) {
 		string[] args = arguments.Trim().Split();
 
 		string action = args.Length >= 1 ? args[0].ToLower() : "config";
@@ -337,7 +340,7 @@ public class Plugin: IDalamudPlugin {
 				state = null;
 				break;
 			case "config":
-				this.toggleConfigUi();
+				this.ToggleConfigUi();
 				return;
 			case "swap":
 				target = "all";
@@ -437,22 +440,34 @@ public class Plugin: IDalamudPlugin {
 				break;
 			case "tether":
 				this.Config.DrawTetherLine = state ?? !this.Config.DrawTetherLine;
-				Interface.UiBuilder.AddNotification($"Tether rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}", this.Name, NotificationType.Info);
+				Notifications.AddNotification(new() {
+					Title = Name,
+					Content = $"Tether rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}",
+					Type = NotificationType.Info,
+					Minimized = true,
+					MinimizedText = $"Tethers {(this.Config.DrawTetherLine ? "on" : "off")}",
+				});
 				break;
 			case "render":
 				this.Config.Enabled = state ?? !this.Config.Enabled;
-				Interface.UiBuilder.AddNotification($"Guide rendering {(this.Config.Enabled ? "enabled" : "disabled")}", this.Name, NotificationType.Info);
+				Notifications.AddNotification(new() {
+					Title = Name,
+					Content = $"Guide rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}",
+					Type = NotificationType.Info,
+					Minimized = true,
+					MinimizedText = $"Guides {(this.Config.DrawTetherLine ? "on" : "off")}",
+				});
 				break;
 			default:
 				Chat.PrintError($"Unknown target '{args[1]}'");
 				return;
 		}
 
-		this.settingsUpdated();
+		this.SettingsUpdated();
 		Interface.SavePluginConfig(this.Config);
 	}
 
-	internal void toggleConfigUi() {
+	internal void ToggleConfigUi() {
 		if (this.configWindow is not null) {
 			this.configWindow.IsOpen = !this.configWindow.IsOpen;
 		}
@@ -468,9 +483,9 @@ public class Plugin: IDalamudPlugin {
 		this.disposed = true;
 
 		if (disposing) {
-			Interface.UiBuilder.OpenConfigUi -= this.toggleConfigUi;
-			Interface.UiBuilder.Draw -= this.draw;
-			this.configWindow.OnSettingsUpdate -= this.settingsUpdated;
+			Interface.UiBuilder.OpenConfigUi -= this.ToggleConfigUi;
+			Interface.UiBuilder.Draw -= this.Draw;
+			this.configWindow.OnSettingsUpdate -= this.SettingsUpdated;
 
 			Commands.RemoveHandler(Command);
 
