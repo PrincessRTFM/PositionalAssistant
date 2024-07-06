@@ -29,7 +29,7 @@ jobs:
       tagExists: ${{ steps.check-version-tag.outputs.tagExists }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Load values
@@ -54,7 +54,7 @@ jobs:
     runs-on: windows-2022
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Setup MSBuild
@@ -68,7 +68,7 @@ jobs:
     - name: Build
       run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
     - name: Upload build
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: PluginRepoZip
         path: ${{ env.INTERNAL_NAME }}/bin/${{ env.CONFIGURATION }}/${{ env.INTERNAL_NAME }}
