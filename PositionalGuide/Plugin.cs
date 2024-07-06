@@ -8,7 +8,7 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Gui.Dtr;
-using Dalamud.Interface.Internal.Notifications;
+using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -27,7 +27,7 @@ public class Plugin: IDalamudPlugin {
 	// lineIndexToRad and circleSegmentIdxToRad are fixed and only need to be calculated once at the start,
 	// since neither the number of lines nor the number of circle segments change
 	private readonly float[] lineIndexToAngle = Enumerable.Range(Configuration.IndexFront, Configuration.IndexFrontLeft + 1).Select(idx => (float)(idx * Math.PI / 4)).ToArray();
-	private readonly float[] circleSegmentIdxToAngle =  Enumerable.Range(0, circleSegmentCount).Select(idx => (float)(idx * (2.0 * Math.PI / circleSegmentCount))).ToArray();
+	private readonly float[] circleSegmentIdxToAngle = Enumerable.Range(0, circleSegmentCount).Select(idx => (float)(idx * (2.0 * Math.PI / circleSegmentCount))).ToArray();
 	private readonly Vector4[] circleSegmentIdxToColour = new Vector4[circleSegmentCount];
 
 	private enum CircleTypes { Target, Outer };
@@ -39,7 +39,7 @@ public class Plugin: IDalamudPlugin {
 
 	[PluginService] public static IGameGui Gui { get; private set; } = null!;
 	[PluginService] public static IChatGui Chat { get; private set; } = null!;
-	[PluginService] public static DalamudPluginInterface Interface { get; private set; } = null!;
+	[PluginService] public static IDalamudPluginInterface Interface { get; private set; } = null!;
 	[PluginService] public static ICommandManager Commands { get; private set; } = null!;
 	[PluginService] public static IClientState Client { get; private set; } = null!;
 	[PluginService] public static ITargetManager Targets { get; private set; } = null!;
@@ -50,7 +50,7 @@ public class Plugin: IDalamudPlugin {
 
 	private readonly WindowSystem windowSystem;
 	private readonly ConfigWindow configWindow;
-	private readonly DtrBarEntry dtrEntry;
+	private readonly IDtrBarEntry dtrEntry;
 
 	public Plugin(IDtrBar dtrBar) {
 		this.Config = Interface.GetPluginConfig() as Configuration ?? new();
@@ -117,10 +117,10 @@ public class Plugin: IDalamudPlugin {
 		if (!this.Config.Enabled)
 			return;
 
-		if (Targets.Target is not BattleChara target)
+		if (Targets.Target is not IBattleNpc target)
 			return;
 
-		if (Client.LocalPlayer is not PlayerCharacter player)
+		if (Client.LocalPlayer is not IPlayerCharacter player)
 			return;
 
 		if (target.ObjectKind is ObjectKind.Player) {
@@ -174,16 +174,17 @@ public class Plugin: IDalamudPlugin {
 		for (int lineIndex = Configuration.IndexFront; lineIndex <= Configuration.IndexFrontLeft; ++lineIndex) {
 			if (!this.Config.DrawGuides[lineIndex])
 				continue;
-            anyLineActive = true;
+			anyLineActive = true;
 
 			Vector3 rotated = RotatePoint(targetPos, guidelineBasePoint2, targetFacing + this.lineIndexToAngle[lineIndex]);
 			bool endpointOnScreen = Gui.WorldToScreen(rotated, out Vector2 coord);
-            if (limitEither) {
-                if (!targetOnScreen && !endpointOnScreen)
-                    continue;
-            } else if (limitOuter && !endpointOnScreen) {
-                continue;
-            }
+			if (limitEither) {
+				if (!targetOnScreen && !endpointOnScreen)
+					continue;
+			}
+			else if (limitOuter && !endpointOnScreen) {
+				continue;
+			}
 			drawing.AddLine(centre, coord, ImGui.GetColorU32(this.Config.LineColours[lineIndex]), this.Config.LineThickness);
 		}
 
@@ -264,13 +265,13 @@ public class Plugin: IDalamudPlugin {
 			case CircleTypes.Outer:
 				circleColour = this.Config.LineColours[Configuration.IndexOuterCircle];
 				forceCircleColour = this.Config.AlwaysUseCircleColours || this.Config.AlwaysUseCircleColoursOuter || !anyLineActive;
-                circleBasePoint += new Vector3(0, 0, this.Config.SoftOuterCircleRange);
+				circleBasePoint += new Vector3(0, 0, this.Config.SoftOuterCircleRange);
 				break;
 		}
 
 		Vector3 startPoint = RotatePoint(targetPos, circleBasePoint, targetFacing);
 		Vector3[] points = CirclePoints(targetPos, startPoint, this.circleSegmentIdxToAngle).ToArray();
-		
+
 		(Vector2 point, bool render)[] screenPoints = new (Vector2 point, bool render)[points.Length];
 		for (int i = 0; i < points.Length; ++i) {
 			bool render = Gui.WorldToScreen(points[i], out Vector2 screenPoint);
@@ -310,7 +311,7 @@ public class Plugin: IDalamudPlugin {
 
 	private static double AngleBetween(Vector2 vertex, Vector2 a, Vector2 b) => Math.Atan2(b.Y - vertex.Y, b.X - vertex.X) - Math.Atan2(a.Y - vertex.Y, a.X - vertex.X);
 	private static double AngleBetween(Vector3 vertex, Vector3 a, Vector3 b) => AngleBetween(new Vector2(vertex.X, vertex.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
-	private static float AngleDifference(float a, float b) => (float)(Math.Min(Math.Abs(a - b), Math.Abs(Math.Abs(a - b) - (2 * Math.PI))));
+	private static float AngleDifference(float a, float b) => (float)Math.Min(Math.Abs(a - b), Math.Abs(Math.Abs(a - b) - (2 * Math.PI)));
 
 	private static IEnumerable<Vector2> CirclePoints(Vector2 centre, Vector2 start, float[] angles) {
 		foreach (float angle in angles)

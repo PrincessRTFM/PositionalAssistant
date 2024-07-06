@@ -76,16 +76,16 @@ public class Configuration: IPluginConfiguration {
 	/// Starts at front then goes clockwise up to index=7, then circle at index=8 and outer circle at index=9
 	/// </summary>
 	public Vector4[] LineColours { get; set; } = new Vector4[] {
-		new Vector4(1, 0, 0, 1), // front
-		new Vector4(1, 0, 0, 1), // front right
-		new Vector4(0, 0, 1, 1), // right
-		new Vector4(0, 1, 0, 1), // back right
-		new Vector4(0, 1, 0, 1), // back
-		new Vector4(0, 1, 0, 1), // back left
-		new Vector4(0, 0, 1, 1), // left
-		new Vector4(1, 0, 0, 1), // front left
-		new Vector4(1, 1, 0, 1), // circle default
-		new Vector4(1, 1, 0, 1), // outer circle default
+		new(1, 0, 0, 1), // front
+		new(1, 0, 0, 1), // front right
+		new(0, 0, 1, 1), // right
+		new(0, 1, 0, 1), // back right
+		new(0, 1, 0, 1), // back
+		new(0, 1, 0, 1), // back left
+		new(0, 0, 1, 1), // left
+		new(1, 0, 0, 1), // front left
+		new(1, 1, 0, 1), // circle default
+		new(1, 1, 0, 1), // outer circle default
 	};
 
 	public void Update() {

@@ -7,9 +7,7 @@ namespace PrincessRTFM.PositionalGuide;
 internal class ImGuitils {
 	public int TooltipPixelWrapWidth;
 
-	public ImGuitils(int tooltipPixelWrapWidth) {
-		this.TooltipPixelWrapWidth = tooltipPixelWrapWidth;
-	}
+	public ImGuitils(int tooltipPixelWrapWidth) => this.TooltipPixelWrapWidth = tooltipPixelWrapWidth;
 
 	public void Tooltip(string text) {
 		if (ImGui.IsItemHovered()) {
