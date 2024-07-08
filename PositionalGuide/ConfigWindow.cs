@@ -245,13 +245,13 @@ public class ConfigWindow: Window, IDisposable {
 		ImGui.PushStyleVar(ImGuiStyleVar.Alpha, circleColours[0] ? InactiveOptionAlpha : 1);
 
 		ImGui.Indent();
-		changed |= ImGui.Checkbox("Always use the defined colowr for the target circle?", ref circleColours[1]);
+		changed |= ImGui.Checkbox("Always use the defined colour for the target circle?", ref circleColours[1]);
 		ImGui.Unindent();
 
 		utils.Tooltip("As above but only for the target circle.");
 
 		ImGui.Indent();
-		changed |= ImGui.Checkbox("Always use the defined color for the outer circle?", ref circleColours[2]);
+		changed |= ImGui.Checkbox("Always use the defined colour for the outer circle?", ref circleColours[2]);
 		ImGui.Unindent();
 
 		utils.Tooltip("As above but only for the outer circle.");
