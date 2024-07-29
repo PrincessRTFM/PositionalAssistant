@@ -441,23 +441,23 @@ public class Plugin: IDalamudPlugin {
 				break;
 			case "tether":
 				this.Config.DrawTetherLine = state ?? !this.Config.DrawTetherLine;
-				Notifications.AddNotification(new() {
-					Title = Name,
-					Content = $"Tether rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}",
-					Type = NotificationType.Info,
-					Minimized = true,
-					MinimizedText = $"Tethers {(this.Config.DrawTetherLine ? "on" : "off")}",
-				});
+				//Notifications.AddNotification(new() {
+				//	Title = Name,
+				//	Content = $"Tether rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}",
+				//	Type = NotificationType.Info,
+				//	Minimized = true,
+				//	MinimizedText = $"Tethers {(this.Config.DrawTetherLine ? "on" : "off")}",
+				//});
 				break;
 			case "render":
 				this.Config.Enabled = state ?? !this.Config.Enabled;
-				Notifications.AddNotification(new() {
-					Title = Name,
-					Content = $"Guide rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}",
-					Type = NotificationType.Info,
-					Minimized = true,
-					MinimizedText = $"Guides {(this.Config.DrawTetherLine ? "on" : "off")}",
-				});
+				//Notifications.AddNotification(new() {
+				//	Title = Name,
+				//	Content = $"Guide rendering {(this.Config.DrawTetherLine ? "enabled" : "disabled")}",
+				//	Type = NotificationType.Info,
+				//	Minimized = true,
+				//	MinimizedText = $"Guides {(this.Config.DrawTetherLine ? "on" : "off")}",
+				//});
 				break;
 			default:
 				Chat.PrintError($"Unknown target '{args[1]}'");
