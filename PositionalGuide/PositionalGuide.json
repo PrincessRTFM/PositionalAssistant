@@ -3,5 +3,12 @@
 	"Name": "Positional Assistant",
 	"Description": "If you have a hard time telling whether you're in the right spot for positional attacks, this plugin can draw guidelines on your screen to help you tell where you need to be.",
 	"RepoUrl": "https://github.com/PrincessRTFM/PositionalAssistant",
-	"Punchline": "Never guess whether you'll make that positional again!"
+	"Punchline": "Never guess whether you'll make that positional again!",
+	"Tags": [
+		"positional",
+		"guideline",
+		"assist",
+		"combat",
+		"target"
+	]
 }
