@@ -96,4 +96,4 @@ jobs:
       with:
         token: ${{ secrets.PAT }}
         plugin_name: ${{ env.INTERNAL_NAME }}
-        plugin_owners: PrincessRTFM
+        plugin_owners: VariableVixen

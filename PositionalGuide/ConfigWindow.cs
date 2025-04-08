@@ -57,7 +57,7 @@ public class ConfigWindow: Window, IDisposable {
 				Priority = 1,
 				Icon = FontAwesomeIcon.Code,
 				IconOffset = new(1, 1),
-				Click = _ => Process.Start(new ProcessStartInfo("https://github.com/PrincessRTFM/PositionalAssistant") { UseShellExecute = true }),
+				Click = _ => Process.Start(new ProcessStartInfo("https://github.com/VariableVixen/PositionalAssistant") { UseShellExecute = true }),
 				ShowTooltip = () => {
 					ImGui.BeginTooltip();
 					ImGui.TextUnformatted("Browse the github repo");
